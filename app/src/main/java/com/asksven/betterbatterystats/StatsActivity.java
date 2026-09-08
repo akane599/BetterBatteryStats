@@ -323,13 +323,13 @@ public class StatsActivity extends ActionBarListActivity
 		{
 			m_iStat		= Integer.valueOf(sharedPrefs.getString("default_stat", "0"));
 			m_refFromName	= sharedPrefs.getString("default_stat_type", Reference.UNPLUGGED_REF_FILENAME);
-			
-    		Log.e(TAG, "Exception: " + e.getMessage());
-    		DataStorage.LogToFile(LOGFILE, "Exception in onCreate restoring Bundle");
-    		DataStorage.LogToFile(LOGFILE, e.getMessage());
-    		DataStorage.LogToFile(LOGFILE, e.getStackTrace());
-    		
-    		Toast.makeText(this, getString(R.string.info_state_recovery_error), Toast.LENGTH_SHORT).show();
+
+			Log.e(TAG, "Exception: " + e.getMessage());
+			DataStorage.LogToFile(LOGFILE, "Exception in onCreate restoring Bundle");
+			DataStorage.LogToFile(LOGFILE, e.getMessage());
+			DataStorage.LogToFile(LOGFILE, e.getStackTrace());
+
+			Toast.makeText(this, getString(R.string.info_state_recovery_error), Toast.LENGTH_SHORT).show();
 		}
 
 		// Handle the case the Activity was called from an intent with paramaters
@@ -464,14 +464,14 @@ public class StatsActivity extends ActionBarListActivity
             }
         };
         
-        //registering our receiver
-		if (Build.VERSION.SDK_INT >= 26) {
-			this.registerReceiver(m_referenceSavedReceiver, intentFilter, Context.RECEIVER_NOT_EXPORTED);
-		}
-		else
-		{
-			this.registerReceiver(m_referenceSavedReceiver, intentFilter);
-		}
+		// registering our receiver.
+		//
+		// The three-argument registerReceiver(receiver, filter, int) overload was only added in
+		// API 33, so guarding it with SDK_INT >= 26 meant a NoSuchMethodError on Android 8 through
+		// 12. ContextCompat picks the right overload for the running platform. The broadcast is the
+		// app's own reference-updated signal, so the receiver is not exported.
+		ContextCompat.registerReceiver(this, m_referenceSavedReceiver, intentFilter,
+				ContextCompat.RECEIVER_NOT_EXPORTED);
 
 		// the service is always started as it handles the widget updates too
 		SharedPreferences sharedPrefs = PreferenceManager.getDefaultSharedPreferences(this);

@@ -21,13 +21,13 @@ import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.preference.PreferenceManager;
 import android.util.AttributeSet;
-import android.widget.Button;
+import androidx.appcompat.widget.AppCompatButton;
 
 /**
  * @author sven
  * Adapted from http://gitorious.org/0xdroid/packages_apps_settings/blobs/99f095dfde9dd7c95fd0b9b555b02b85594495b2/src/com/android/settings/battery_history/GraphableButton.java
  */
-public class GraphableButton extends Button
+public class GraphableButton extends AppCompatButton
 {
     private static final String TAG = "GraphableButton";
     private Context m_context;

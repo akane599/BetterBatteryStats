@@ -22,12 +22,12 @@ import android.graphics.Paint;
 import android.preference.PreferenceManager;
 import android.util.AttributeSet;
 import android.util.Log;
-import android.widget.ImageView;
+import androidx.appcompat.widget.AppCompatImageView;
 
 /**
  * @author sven
  */
-public class GraphableBars extends ImageView
+public class GraphableBars extends AppCompatImageView
 {
     private static final String TAG = "GraphableBars";
     private Context m_context;

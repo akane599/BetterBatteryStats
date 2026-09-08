@@ -3396,18 +3396,12 @@ public class StatsProvider
 	{
 		Intent intent = new Intent(ctx, ActiveMonAlarmReceiver.class);
 		boolean alarmUp = false;
-		if (Build.VERSION.SDK_INT < 23) {
-			alarmUp = (PendingIntent.getBroadcast(ctx, ActiveMonAlarmReceiver.ACTIVE_MON_ALARM,
-					intent,
-					PendingIntent.FLAG_NO_CREATE) != null);
-		}
-		else
-		{
-			alarmUp = (PendingIntent.getBroadcast(ctx, ActiveMonAlarmReceiver.ACTIVE_MON_ALARM,
-					intent,
-					PendingIntent.FLAG_NO_CREATE | PendingIntent.FLAG_IMMUTABLE ) != null);
-
-		}
+		// A PendingIntent handed to the system must state its mutability from API 31 on, and the
+		// pre-23 branch this replaces passed no flag at all. minSdk is 23, so that branch was dead
+		// code that only served to hide the missing flag from lint.
+		alarmUp = (PendingIntent.getBroadcast(ctx, ActiveMonAlarmReceiver.ACTIVE_MON_ALARM,
+				intent,
+				PendingIntent.FLAG_NO_CREATE | PendingIntent.FLAG_IMMUTABLE) != null);
 		if (alarmUp)
 		{
 		    Log.i("myTag", "Alarm is already active");
