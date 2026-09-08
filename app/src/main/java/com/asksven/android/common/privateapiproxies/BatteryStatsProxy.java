@@ -102,11 +102,106 @@ public class BatteryStatsProxy
 	 */
 	private SparseArray<? extends Object> m_uidStats = null;
 	
-	/** 
-	 * An instance to the UidNameResolver 
+	/**
+	 * An instance to the UidNameResolver
 	 */
 	private static BatteryStatsProxy m_proxy = null;
-	
+
+	/**
+	 * The places {@code BatteryStatsImpl} has lived, most recent first.
+	 *
+	 * <p>Android 14 moved it out of {@code framework.jar} and into {@code services.jar}, where an
+	 * app process cannot reach it. The relocated name is tried anyway: it costs one failed class
+	 * lookup, and it means a device or fork that does expose it keeps working instead of being
+	 * written off by a hardcoded package name.</p>
+	 */
+	private static final String[] BATTERY_STATS_IMPL_CLASS_NAMES = {
+			"com.android.server.power.stats.BatteryStatsImpl", // Android 14 and later
+			"com.android.internal.os.BatteryStatsImpl"         // Android 13 and earlier
+	};
+
+	/** Resolved name of {@link #BATTERY_STATS_IMPL_CLASS_NAMES}, or null when none could be loaded. */
+	private static volatile String m_implClassName = null;
+	private static volatile boolean m_implClassResolved = false;
+
+	/**
+	 * Resolves the name under which {@code BatteryStatsImpl} can be loaded on this device.
+	 *
+	 * @return the class name, or the historical one when none is loadable, so that error messages
+	 *         and stack traces still name something meaningful.
+	 */
+	private static String implClassName(ClassLoader cl)
+	{
+		if (m_implClassResolved)
+		{
+			return m_implClassName != null ? m_implClassName : BATTERY_STATS_IMPL_CLASS_NAMES[1];
+		}
+
+		synchronized (BatteryStatsProxy.class)
+		{
+			if (!m_implClassResolved)
+			{
+				for (String candidate : BATTERY_STATS_IMPL_CLASS_NAMES)
+				{
+					try
+					{
+						cl.loadClass(candidate);
+						m_implClassName = candidate;
+						Log.i(TAG, "BatteryStatsImpl resolved to " + candidate);
+						break;
+					}
+					catch (Throwable t)
+					{
+						// try the next location
+					}
+				}
+
+				if (m_implClassName == null)
+				{
+					Log.w(TAG, "BatteryStatsImpl could not be loaded under any known name");
+				}
+
+				m_implClassResolved = true;
+			}
+		}
+
+		return m_implClassName != null ? m_implClassName : BATTERY_STATS_IMPL_CLASS_NAMES[1];
+	}
+
+	/**
+	 * @param nested the nested type, e.g. {@code "Uid$Wakelock"}
+	 * @return the fully qualified name of a type nested in {@code BatteryStatsImpl}
+	 */
+	private static String implClassName(ClassLoader cl, String nested)
+	{
+		return implClassName(cl) + "$" + nested;
+	}
+
+	/**
+	 * @return whether {@code BatteryStatsImpl} can be loaded at all in this process. False on
+	 *         Android 14 and later, where the class is no longer part of the app-visible framework.
+	 */
+	public static boolean isImplementationClassAvailable(Context context)
+	{
+		if (context == null)
+		{
+			return false;
+		}
+
+		implClassName(context.getClassLoader());
+		return m_implClassName != null;
+	}
+
+	/**
+	 * @return whether this proxy actually holds a {@code BatteryStatsImpl} instance. Every accessor
+	 *         on this class reflects against that instance, so calling one without checking first
+	 *         throws.
+	 */
+	public boolean isInitialised()
+	{
+		return m_Instance != null;
+	}
+
 	synchronized public static BatteryStatsProxy getInstance(Context ctx)
 	{
 
@@ -261,11 +356,11 @@ public class BatteryStatsProxy
 		{
             ClassLoader cl = context.getClassLoader();
 
-            m_ClassDefinition = cl.loadClass("com.android.internal.os.BatteryStatsImpl");
+            m_ClassDefinition = cl.loadClass(implClassName(cl));
 
             // enumerate some data
 //            dumpClass(m_ClassDefinition);
-//            Class iBatteryStatsUid = cl.loadClass("com.android.internal.os.BatteryStatsImpl$Uid");
+//            Class iBatteryStatsUid = cl.loadClass(implClassName(cl, "Uid"));
 //            dumpClass(iBatteryStatsUid);
 
             // get the IBinder to the "batteryinfo" service
@@ -352,7 +447,7 @@ public class BatteryStatsProxy
             parcel.setDataPosition(0);
 
             @SuppressWarnings("rawtypes")
-            Class batteryStatsImpl = cl.loadClass("com.android.internal.os.BatteryStatsImpl");
+            Class batteryStatsImpl = cl.loadClass(implClassName(cl));
 
             if (CommonLogSettings.DEBUG)
             {
@@ -420,7 +515,7 @@ public class BatteryStatsProxy
 		{
 			ClassLoader cl = context.getClassLoader();
 
-			m_ClassDefinition = cl.loadClass("com.android.internal.os.BatteryStatsImpl");
+			m_ClassDefinition = cl.loadClass(implClassName(cl));
 
 			// get the IBinder to the "batteryinfo" service
 			@SuppressWarnings("rawtypes")
@@ -544,7 +639,7 @@ public class BatteryStatsProxy
                         parcel.setDataPosition(0);
 
                         @SuppressWarnings("rawtypes")
-                        Class batteryStatsImpl = cl.loadClass("com.android.internal.os.BatteryStatsImpl");
+                        Class batteryStatsImpl = cl.loadClass(implClassName(cl));
 
                         if (CommonLogSettings.DEBUG) {
                             Log.i(TAG, "reading CREATOR field");
@@ -566,9 +661,9 @@ public class BatteryStatsProxy
                         parcel.setDataPosition(0);
 
                         @SuppressWarnings("rawtypes")
-                        Class batteryStatsImpl = cl.loadClass("com.android.internal.os.BatteryStatsImpl");
+                        Class batteryStatsImpl = cl.loadClass(implClassName(cl));
 
-                        Constructor bsiEmptyConstructor = Class.forName("com.android.internal.os.BatteryStatsImpl").getConstructor();
+                        Constructor bsiEmptyConstructor = Class.forName(implClassName(cl)).getConstructor();
                         Object bsiInstance = bsiEmptyConstructor.newInstance();
 
                         // Initialize the PowerProfile
@@ -1033,7 +1128,7 @@ public class BatteryStatsProxy
 				
 				ClassLoader cl = context.getClassLoader();
 				@SuppressWarnings("rawtypes")
-				Class iBatteryStatsUid = cl.loadClass("com.android.internal.os.BatteryStatsImpl$Uid");
+				Class iBatteryStatsUid = cl.loadClass(implClassName(cl, "Uid"));
 
 				int NU = m_uidStats.size();
 		        for (int iu = 0; iu < NU; iu++)
@@ -1097,7 +1192,7 @@ public class BatteryStatsProxy
 				
 				ClassLoader cl = context.getClassLoader();
 				@SuppressWarnings("rawtypes")
-				Class iBatteryStatsUid = cl.loadClass("com.android.internal.os.BatteryStatsImpl$Uid");
+				Class iBatteryStatsUid = cl.loadClass(implClassName(cl, "Uid"));
 
 				int NU = m_uidStats.size();
 		        for (int iu = 0; iu < NU; iu++)
@@ -1153,7 +1248,7 @@ public class BatteryStatsProxy
 				
 				ClassLoader cl = context.getClassLoader();
 				@SuppressWarnings("rawtypes")
-				Class iBatteryStatsUid = cl.loadClass("com.android.internal.os.BatteryStatsImpl$Uid");
+				Class iBatteryStatsUid = cl.loadClass(implClassName(cl, "Uid"));
 
 				int NU = m_uidStats.size();
 		        for (int iu = 0; iu < NU; iu++)
@@ -1209,7 +1304,7 @@ public class BatteryStatsProxy
 				
 				ClassLoader cl = context.getClassLoader();
 				@SuppressWarnings("rawtypes")
-				Class iBatteryStatsUid = cl.loadClass("com.android.internal.os.BatteryStatsImpl$Uid");
+				Class iBatteryStatsUid = cl.loadClass(implClassName(cl, "Uid"));
 
 				int NU = m_uidStats.size();
 		        for (int iu = 0; iu < NU; iu++)
@@ -1413,7 +1508,7 @@ public class BatteryStatsProxy
 				
 				ClassLoader cl = context.getClassLoader();
 				@SuppressWarnings("rawtypes")
-				Class iBatteryStatsUid = cl.loadClass("com.android.internal.os.BatteryStatsImpl$Uid");
+				Class iBatteryStatsUid = cl.loadClass(implClassName(cl, "Uid"));
 
 				int NU = m_uidStats.size();
 		        for (int iu = 0; iu < NU; iu++)
@@ -1469,7 +1564,7 @@ public class BatteryStatsProxy
 				
 				ClassLoader cl = context.getClassLoader();
 				@SuppressWarnings("rawtypes")
-				Class iBatteryStatsUid = cl.loadClass("com.android.internal.os.BatteryStatsImpl$Uid");
+				Class iBatteryStatsUid = cl.loadClass(implClassName(cl, "Uid"));
 
 				int NU = m_uidStats.size();
 		        for (int iu = 0; iu < NU; iu++)
@@ -1529,7 +1624,7 @@ public class BatteryStatsProxy
 				
 				ClassLoader cl = context.getClassLoader();
 				@SuppressWarnings("rawtypes")
-				Class iBatteryStatsUid = cl.loadClass("com.android.internal.os.BatteryStatsImpl$Uid");
+				Class iBatteryStatsUid = cl.loadClass(implClassName(cl, "Uid"));
 
 				int NU = m_uidStats.size();
 		        for (int iu = 0; iu < NU; iu++)
@@ -1555,7 +1650,7 @@ public class BatteryStatsProxy
 							    // Object is a BatteryStatsTypes.Uid.Proc
 							    Object sensor = sensorStats.valueAt(i);
 								@SuppressWarnings("rawtypes")
-								Class batteryStatsUidSensor = cl.loadClass("com.android.internal.os.BatteryStatsImpl$Uid$Sensor");
+								Class batteryStatsUidSensor = cl.loadClass(implClassName(cl, "Uid$Sensor"));
 	
 								Method methodGetSensorTime = batteryStatsUidSensor.getMethod("getSensorTime");
 								Object timer = methodGetSensorTime.invoke(sensor);
@@ -1563,7 +1658,7 @@ public class BatteryStatsProxy
 								Method methodGetHandle = batteryStatsUidSensor.getMethod("getHandle");
 								Integer handle = (Integer) methodGetHandle.invoke(sensor);
 								
-								Class batteryStatsUidTimer = cl.loadClass("com.android.internal.os.BatteryStatsImpl$StopwatchTimer");
+								Class batteryStatsUidTimer = cl.loadClass(implClassName(cl, "StopwatchTimer"));
 	
 								//Parameters Types
 								@SuppressWarnings("rawtypes")
@@ -1605,7 +1700,7 @@ public class BatteryStatsProxy
 				            	Object sensor = sensorEntry.getValue();
 
 								@SuppressWarnings("rawtypes")
-								Class batteryStatsUidSensor = cl.loadClass("com.android.internal.os.BatteryStatsImpl$Uid$Sensor");
+								Class batteryStatsUidSensor = cl.loadClass(implClassName(cl, "Uid$Sensor"));
 	
 								Method methodGetSensorTime = batteryStatsUidSensor.getMethod("getSensorTime");
 								Object timer = methodGetSensorTime.invoke(sensor);
@@ -1613,7 +1708,7 @@ public class BatteryStatsProxy
 								Method methodGetHandle = batteryStatsUidSensor.getMethod("getHandle");
 								Integer handle = (Integer) methodGetHandle.invoke(sensor);
 								
-								Class batteryStatsUidTimer = cl.loadClass("com.android.internal.os.BatteryStatsImpl$StopwatchTimer");
+								Class batteryStatsUidTimer = cl.loadClass(implClassName(cl, "StopwatchTimer"));
 	
 								//Parameters Types
 								@SuppressWarnings("rawtypes")
@@ -1680,7 +1775,7 @@ public class BatteryStatsProxy
 				
 				ClassLoader cl = context.getClassLoader();
 				@SuppressWarnings("rawtypes")
-				Class iBatteryStatsUid = cl.loadClass("com.android.internal.os.BatteryStatsImpl$Uid");
+				Class iBatteryStatsUid = cl.loadClass(implClassName(cl, "Uid"));
 	
 				int NU = m_uidStats.size();
 		        for (int iu = 0; iu < NU; iu++)
@@ -1709,7 +1804,7 @@ public class BatteryStatsProxy
 							    // Object is a BatteryStatsTypes.Uid.Proc
 							    Object sensor = sensorStats.valueAt(i);
 								@SuppressWarnings("rawtypes")
-								Class batteryStatsUidSensor = cl.loadClass("com.android.internal.os.BatteryStatsImpl$Uid$Sensor");
+								Class batteryStatsUidSensor = cl.loadClass(implClassName(cl, "Uid$Sensor"));
 		
 								Method methodGetSensorTime = batteryStatsUidSensor.getMethod("getSensorTime");
 								Object timer = methodGetSensorTime.invoke(sensor);
@@ -1717,7 +1812,7 @@ public class BatteryStatsProxy
 								Method methodGetHandle = batteryStatsUidSensor.getMethod("getHandle");
 								Integer handle = (Integer) methodGetHandle.invoke(sensor);
 								
-								Class batteryStatsUidTimer = cl.loadClass("com.android.internal.os.BatteryStatsImpl$StopwatchTimer");
+								Class batteryStatsUidTimer = cl.loadClass(implClassName(cl, "StopwatchTimer"));
 		
 								//Parameters Types
 								@SuppressWarnings("rawtypes")
@@ -1817,7 +1912,7 @@ public class BatteryStatsProxy
 				            	Object sensor = sensorEntry.getValue();
 						
 								@SuppressWarnings("rawtypes")
-								Class batteryStatsUidSensor = cl.loadClass("com.android.internal.os.BatteryStatsImpl$Uid$Sensor");
+								Class batteryStatsUidSensor = cl.loadClass(implClassName(cl, "Uid$Sensor"));
 		
 								Method methodGetSensorTime = batteryStatsUidSensor.getMethod("getSensorTime");
 								Object timer = methodGetSensorTime.invoke(sensor);
@@ -1825,7 +1920,7 @@ public class BatteryStatsProxy
 								Method methodGetHandle = batteryStatsUidSensor.getMethod("getHandle");
 								Integer handle = (Integer) methodGetHandle.invoke(sensor);
 								
-								Class batteryStatsUidTimer = cl.loadClass("com.android.internal.os.BatteryStatsImpl$StopwatchTimer");
+								Class batteryStatsUidTimer = cl.loadClass(implClassName(cl, "StopwatchTimer"));
 		
 								//Parameters Types
 								@SuppressWarnings("rawtypes")
@@ -2012,7 +2107,7 @@ public class BatteryStatsProxy
 				
 				ClassLoader cl = context.getClassLoader();
 				@SuppressWarnings("rawtypes")
-				Class iBatteryStatsUid = cl.loadClass("com.android.internal.os.BatteryStatsImpl$Uid");
+				Class iBatteryStatsUid = cl.loadClass(implClassName(cl, "Uid"));
 
 				int NU = m_uidStats.size();
 		        for (int iu = 0; iu < NU; iu++)
@@ -2036,7 +2131,7 @@ public class BatteryStatsProxy
 						    // Object is a BatteryStatsTypes.Uid.Proc
 						    Object sensor = sensorStats.valueAt(i);
 							@SuppressWarnings("rawtypes")
-							Class batteryStatsUidSensor = cl.loadClass("com.android.internal.os.BatteryStatsImpl$Uid$Sensor");
+							Class batteryStatsUidSensor = cl.loadClass(implClassName(cl, "Uid$Sensor"));
 
 							Method methodGetSensorTime = batteryStatsUidSensor.getMethod("getSensorTime");
 							Object timer = methodGetSensorTime.invoke(sensor);
@@ -2048,7 +2143,7 @@ public class BatteryStatsProxy
 							// GPS is not defined in the HAL but has a constant value of -10000
 							if (handle == -10000)
 							{
-								Class batteryStatsUidTimer = cl.loadClass("com.android.internal.os.BatteryStatsImpl$StopwatchTimer");
+								Class batteryStatsUidTimer = cl.loadClass(implClassName(cl, "StopwatchTimer"));
 	
 								//Parameters Types
 								@SuppressWarnings("rawtypes")
@@ -2192,16 +2287,16 @@ public class BatteryStatsProxy
                 // counter is of type BatteryStats.ControllerActivityCounter
                 ClassLoader cl = ctx.getClassLoader();
                 @SuppressWarnings("rawtypes")
-                Class iBatteryStatsControllerActivityCounter = cl.loadClass("com.android.internal.os.BatteryStatsImpl$ControllerActivityCounterImpl");
+                Class iBatteryStatsControllerActivityCounter = cl.loadClass(implClassName(cl, "ControllerActivityCounterImpl"));
 
                 Class iBatteryStatsLongSamplingCounter = null;
                 if (Build.VERSION.SDK_INT < 33)
                 {
-                    iBatteryStatsLongSamplingCounter = cl.loadClass("com.android.internal.os.BatteryStatsImpl$LongSamplingCounter");
+                    iBatteryStatsLongSamplingCounter = cl.loadClass(implClassName(cl, "LongSamplingCounter"));
                 }
                 else
                 {
-                    iBatteryStatsLongSamplingCounter = cl.loadClass("com.android.internal.os.BatteryStatsImpl$TimeMultiStateCounter");
+                    iBatteryStatsLongSamplingCounter = cl.loadClass(implClassName(cl, "TimeMultiStateCounter"));
                 }
                 Method getIdleTimeCounter = iBatteryStatsControllerActivityCounter.getMethod("getIdleTimeCounter");
                 Method getRxTimeCounter = iBatteryStatsControllerActivityCounter.getMethod("getRxTimeCounter");
@@ -2664,7 +2759,7 @@ public class BatteryStatsProxy
             {			
 				ClassLoader cl = context.getClassLoader();
 				@SuppressWarnings("rawtypes")
-				Class iBatteryStatsUid = cl.loadClass("com.android.internal.os.BatteryStatsImpl$Uid");
+				Class iBatteryStatsUid = cl.loadClass(implClassName(cl, "Uid"));
 				int NU = m_uidStats.size();
 		        for (int iu = 0; iu < NU; iu++)
 		        {
@@ -2690,7 +2785,7 @@ public class BatteryStatsProxy
 		            	Object wakelock = wakelockEntry.getValue();
 
 		            	@SuppressWarnings("rawtypes")
-						Class batteryStatsUidWakelock = cl.loadClass("com.android.internal.os.BatteryStatsImpl$Uid$Wakelock");
+						Class batteryStatsUidWakelock = cl.loadClass(implClassName(cl, "Uid$Wakelock"));
 
 						//Parameters Types
 						@SuppressWarnings("rawtypes")
@@ -2714,7 +2809,7 @@ public class BatteryStatsProxy
 						if (wakeTimer != null)
 						{
 			            	@SuppressWarnings("rawtypes")
-							Class iBatteryStatsTimer = cl.loadClass("com.android.internal.os.BatteryStatsImpl$Timer");
+							Class iBatteryStatsTimer = cl.loadClass(implClassName(cl, "Timer"));
 
 							//Parameters Types
 							@SuppressWarnings("rawtypes")
@@ -2830,7 +2925,7 @@ public class BatteryStatsProxy
         {			
 			ClassLoader cl = context.getClassLoader();
 			@SuppressWarnings("rawtypes")
-			Class iBatteryStats = cl.loadClass("com.android.internal.os.BatteryStatsImpl");
+			Class iBatteryStats = cl.loadClass(implClassName(cl));
 
 			Field fKernelWakelockStats = iBatteryStats.getDeclaredField("mTmpWakelockStats");
 			fKernelWakelockStats.setAccessible(true);
@@ -2841,7 +2936,7 @@ public class BatteryStatsProxy
 //            Map<String, ? extends Object> kernelWakelockStats2 = (Map<String, ? extends Object>)  fKernelWakelockStats.get(m_Instance);
 
 
-            Class classSamplingTimer = cl.loadClass("com.android.internal.os.BatteryStatsImpl$SamplingTimer");
+            Class classSamplingTimer = cl.loadClass(implClassName(cl, "SamplingTimer"));
 
             // Field names
             // until Android 11
@@ -2925,7 +3020,7 @@ public class BatteryStatsProxy
             	
 //            	
 //            	@SuppressWarnings("rawtypes")
-//				Class batteryStatsSamplingTimerClass = cl.loadClass("com.android.internal.os.BatteryStatsImpl$SamplingTimer");
+//				Class batteryStatsSamplingTimerClass = cl.loadClass(implClassName(cl, "SamplingTimer"));
 
 				//Parameters Types
 //				@SuppressWarnings("rawtypes")
@@ -3034,7 +3129,7 @@ public class BatteryStatsProxy
             {			
 				ClassLoader cl = context.getClassLoader();
 				@SuppressWarnings("rawtypes")
-				Class iBatteryStatsUid = cl.loadClass("com.android.internal.os.BatteryStatsImpl$Uid");
+				Class iBatteryStatsUid = cl.loadClass(implClassName(cl, "Uid"));
 				int NU = m_uidStats.size();
 		        for (int iu = 0; iu < NU; iu++)
 		        {
@@ -3060,7 +3155,7 @@ public class BatteryStatsProxy
 						    // Object is a BatteryStatsTypes.Uid.Proc
 						    Object ps = ent.getValue();
 							@SuppressWarnings("rawtypes")
-							Class batteryStatsUidProc = cl.loadClass("com.android.internal.os.BatteryStatsImpl$Uid$Proc");
+							Class batteryStatsUidProc = cl.loadClass(implClassName(cl, "Uid$Proc"));
 
 							//Parameters Types
 							@SuppressWarnings("rawtypes")
@@ -3170,7 +3265,7 @@ public class BatteryStatsProxy
             {			
 				ClassLoader cl = context.getClassLoader();
 				@SuppressWarnings("rawtypes")
-				Class iBatteryStatsUid = cl.loadClass("com.android.internal.os.BatteryStatsImpl$Uid");
+				Class iBatteryStatsUid = cl.loadClass(implClassName(cl, "Uid"));
 				int NU = m_uidStats.size();
 		        for (int iu = 0; iu < NU; iu++)
 		        {
@@ -3196,7 +3291,7 @@ public class BatteryStatsProxy
 						    // Object is a BatteryStatsTypes.Uid.Proc
 						    Object ps = ent.getValue();
 							@SuppressWarnings("rawtypes")
-							Class batteryStatsUidPkg = cl.loadClass("com.android.internal.os.BatteryStatsImpl$Uid$Pkg");
+							Class batteryStatsUidPkg = cl.loadClass(implClassName(cl, "Uid$Pkg"));
 
 							//Parameters Types
 							@SuppressWarnings("rawtypes")
@@ -3271,7 +3366,7 @@ public class BatteryStatsProxy
             {			
 				ClassLoader cl = context.getClassLoader();
 				@SuppressWarnings("rawtypes")
-				Class iBatteryStatsUid = cl.loadClass("com.android.internal.os.BatteryStatsImpl$Uid");
+				Class iBatteryStatsUid = cl.loadClass(implClassName(cl, "Uid"));
 				int NU = m_uidStats.size();
 		        for (int iu = 0; iu < NU; iu++)
 		        {
@@ -3297,7 +3392,7 @@ public class BatteryStatsProxy
 						    // Object is a BatteryStatsTypes.Uid.Proc
 						    Object ps = ent.getValue();
 							@SuppressWarnings("rawtypes")
-							Class batteryStatsUidPkg = cl.loadClass("com.android.internal.os.BatteryStatsImpl$Uid$Pkg");
+							Class batteryStatsUidPkg = cl.loadClass(implClassName(cl, "Uid$Pkg"));
 
 							Method methodGetWakeupAlarmStats = batteryStatsUidPkg.getMethod("getWakeupAlarmStats");
 							Map<String, ? extends Object> wakeupStats =
@@ -3305,7 +3400,7 @@ public class BatteryStatsProxy
 							
 							for (Map.Entry<String, ? extends Object> wa : wakeupStats.entrySet())
 							{
-								Class batteryStatsCounter = cl.loadClass("com.android.internal.os.BatteryStatsImpl$Counter");
+								Class batteryStatsCounter = cl.loadClass(implClassName(cl, "Counter"));
 	
 								//Parameters Types
 								@SuppressWarnings("rawtypes")
@@ -3373,7 +3468,7 @@ public class BatteryStatsProxy
             {			
 				ClassLoader cl = context.getClassLoader();
 				@SuppressWarnings("rawtypes")
-				Class iBatteryStatsUid = cl.loadClass("com.android.internal.os.BatteryStatsImpl$Uid");
+				Class iBatteryStatsUid = cl.loadClass(implClassName(cl, "Uid"));
 				int NU = m_uidStats.size();
 		        for (int iu = 0; iu < NU; iu++)
 		        {
@@ -3399,7 +3494,7 @@ public class BatteryStatsProxy
 						    // Object is a BatteryStatsTypes.Uid.Proc
 						    Object timer = ent.getValue();
 							@SuppressWarnings("rawtypes")
-							Class batteryStatsTimer = cl.loadClass("com.android.internal.os.BatteryStatsImpl$Timer");
+							Class batteryStatsTimer = cl.loadClass(implClassName(cl, "Timer"));
 
 							//Parameters Types
 							@SuppressWarnings("rawtypes")
@@ -3459,7 +3554,7 @@ public class BatteryStatsProxy
             {			
 				ClassLoader cl = context.getClassLoader();
 				@SuppressWarnings("rawtypes")
-				Class iBatteryStatsUid = cl.loadClass("com.android.internal.os.BatteryStatsImpl$Uid");
+				Class iBatteryStatsUid = cl.loadClass(implClassName(cl, "Uid"));
 				int NU = m_uidStats.size();
 		        for (int iu = 0; iu < NU; iu++)
 		        {

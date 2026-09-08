@@ -313,6 +313,12 @@
     <string name="NO_REF_ERR">No reference set yet</string>
     <string name="NO_STATS">No stats have been collected yet</string>
     <string name="KWL_ACCESS_ERROR">Kernel Wakelocks could not be accessed, neither by file nor by API</string>
+    <string name="STATS_REMOVED_FROM_PLATFORM">Android 14 moved the detailed battery counters out of the framework and into the system server, where apps cannot read them. Neither root nor extra permissions can bring them back. Stats parsed from \'dumpsys batterystats\' are shown where available.</string>
+    <string name="STATS_HIDDEN_API_BLOCKED">Access to the internal battery APIs is blocked. On a rooted device run: adb shell settings put global hidden_api_policy 1</string>
+    <string name="diagnostics_stats_source">Battery stats source</string>
+    <string name="diagnostics_stats_source_api">Internal API (BatteryStatsImpl)</string>
+    <string name="diagnostics_stats_source_dumpsys">dumpsys batterystats</string>
+    <string name="diagnostics_stats_source_none">unavailable</string>
 
     <!-- from arrays.xml -->
     <string name="stat_type_label_since_charged">Since charged</string>

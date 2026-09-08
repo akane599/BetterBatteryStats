@@ -45,6 +45,7 @@ import androidx.appcompat.widget.Toolbar;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
+import com.asksven.android.common.privateapiproxies.BatteryStatsAvailability;
 import com.asksven.android.common.privateapiproxies.BatteryStatsProxy;
 import com.asksven.android.common.utils.SysUtils;
 import com.google.android.material.snackbar.Snackbar;
@@ -102,6 +103,22 @@ public class DiagnosticsActivity extends BaseActivity
         tvDiags.append("Build.VERSION.SDK_INT: " + Build.VERSION.SDK_INT + "\n");
         tvDiags.append("\n");
 
+        // Lead with the verdict. What follows is the step-by-step trace that produced it, which is
+        // only useful once you know which step is expected to fail on this release.
+        BatteryStatsAvailability.Status status = BatteryStatsAvailability.getStatus(this);
+        tvDiags.append("Detailed battery stats: " + status + "\n");
+        if (status != BatteryStatsAvailability.Status.AVAILABLE)
+        {
+            tvDiags.append(BatteryStatsAvailability.describe(this, status) + "\n");
+        }
+        tvDiags.append("BatteryStatsImpl reachable: "
+                + BatteryStatsProxy.isImplementationClassAvailable(this) + "\n");
+        tvDiags.append("Hidden API access: " + SysUtils.hasPermissionToCallHiddenApis(this) + "\n");
+        tvDiags.append("BATTERY_STATS granted: " + SysUtils.hasBatteryStatsPermission(this) + "\n");
+        tvDiags.append("DUMP granted: " + SysUtils.hasDumpsysPermission(this) + "\n");
+        tvDiags.append("PACKAGE_USAGE_STATS granted: " + SysUtils.hasPackageUsageStatsPermission(this) + "\n");
+        tvDiags.append("\n");
+
         for (int i=0; i < list.size(); i++)
         {
             tvDiags.append(list.get(i));
@@ -118,7 +135,9 @@ public class DiagnosticsActivity extends BaseActivity
             Context context = getApplicationContext();
             ClassLoader cl = context.getClassLoader();
 
-            Class m_ClassDefinition = cl.loadClass("com.android.internal.os.BatteryStatsImpl");
+            // Reported rather than assumed: the class moved packages in Android 14.
+            ret.add("BatteryStatsImpl reachable: "
+                    + BatteryStatsProxy.isImplementationClassAvailable(context));
 
             // get the IBinder to the "batteryinfo" service
             @SuppressWarnings("rawtypes")
