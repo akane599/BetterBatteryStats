@@ -45,9 +45,14 @@ import androidx.appcompat.widget.Toolbar;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
+import com.asksven.android.common.PrivilegedShell;
 import com.asksven.android.common.privateapiproxies.BatteryStatsAvailability;
 import com.asksven.android.common.privateapiproxies.BatteryStatsProxy;
 import com.asksven.android.common.utils.SysUtils;
+import com.asksven.betterbatterystats.shizuku.ShizukuShell;
+import com.asksven.betterbatterystats.util.BackgroundTask;
+
+import rikka.shizuku.Shizuku;
 import com.google.android.material.snackbar.Snackbar;
 
 import java.io.ByteArrayInputStream;
@@ -84,6 +89,89 @@ public class DiagnosticsActivity extends BaseActivity
         getSupportActionBar().setDisplayHomeAsUpEnabled(false);
         getSupportActionBar().setDisplayUseLogoEnabled(false);
 
+        Shizuku.addRequestPermissionResultListener(m_shizukuPermissionListener);
+
+        findViewById(R.id.buttonShizukuPermission).setOnClickListener(v -> ShizukuShell.requestPermission());
+        findViewById(R.id.buttonShizukuGrant).setOnClickListener(v -> grantStatsPermissionsViaShizuku());
+    }
+
+    @Override
+    protected void onDestroy()
+    {
+        Shizuku.removeRequestPermissionResultListener(m_shizukuPermissionListener);
+        super.onDestroy();
+    }
+
+    /**
+     * Shizuku answers a permission request asynchronously; refresh the screen when it does.
+     */
+    private final Shizuku.OnRequestPermissionResultListener m_shizukuPermissionListener =
+            (requestCode, grantResult) ->
+            {
+                boolean granted = grantResult == PackageManager.PERMISSION_GRANTED;
+
+                Snackbar.make(findViewById(android.R.id.content),
+                        granted ? R.string.shizuku_permission_granted : R.string.shizuku_permission_denied,
+                        Snackbar.LENGTH_LONG).show();
+
+                refreshShizukuState();
+            };
+
+    /**
+     * Uses Shizuku's shell privileges to grant the app the permissions the dumpsys-based collection
+     * needs — the same `pm grant` calls a user would otherwise type over adb.
+     */
+    private void grantStatsPermissionsViaShizuku()
+    {
+        if (ShizukuShell.getState() != ShizukuShell.State.READY)
+        {
+            Snackbar.make(findViewById(android.R.id.content), R.string.shizuku_not_installed,
+                    Snackbar.LENGTH_LONG).show();
+            return;
+        }
+
+        // Binding the user service and running `pm grant` both block.
+        BackgroundTask.run(this,
+                () -> ShizukuShell.getInstance().grantStatsPermissions(getApplicationContext()),
+                (succeeded, error) ->
+                {
+                    Snackbar.make(findViewById(android.R.id.content),
+                            (error == null && Boolean.TRUE.equals(succeeded))
+                                    ? R.string.shizuku_grant_succeeded
+                                    : R.string.shizuku_grant_failed,
+                            Snackbar.LENGTH_LONG).show();
+
+                    refreshShizukuState();
+                });
+    }
+
+    /**
+     * Renders the Shizuku state and enables only the actions that make sense in it.
+     */
+    private void refreshShizukuState()
+    {
+        ShizukuShell.State state = ShizukuShell.getState();
+
+        int stateLabel;
+        switch (state)
+        {
+            case READY:
+                stateLabel = R.string.shizuku_state_ready;
+                break;
+            case PERMISSION_DENIED:
+                stateLabel = R.string.shizuku_state_denied;
+                break;
+            case UNAVAILABLE:
+            default:
+                stateLabel = R.string.shizuku_state_unavailable;
+                break;
+        }
+
+        ((TextView) findViewById(R.id.textViewShizukuState)).setText(
+                getString(R.string.shizuku_status) + ": " + getString(stateLabel));
+
+        findViewById(R.id.buttonShizukuPermission).setEnabled(state == ShizukuShell.State.PERMISSION_DENIED);
+        findViewById(R.id.buttonShizukuGrant).setEnabled(state == ShizukuShell.State.READY);
     }
 
     @Override
@@ -117,7 +205,11 @@ public class DiagnosticsActivity extends BaseActivity
         tvDiags.append("BATTERY_STATS granted: " + SysUtils.hasBatteryStatsPermission(this) + "\n");
         tvDiags.append("DUMP granted: " + SysUtils.hasDumpsysPermission(this) + "\n");
         tvDiags.append("PACKAGE_USAGE_STATS granted: " + SysUtils.hasPackageUsageStatsPermission(this) + "\n");
+        tvDiags.append("Privileged shell: " + PrivilegedShell.getBackend() + "\n");
+        tvDiags.append("Shizuku: " + ShizukuShell.getState() + "\n");
         tvDiags.append("\n");
+
+        refreshShizukuState();
 
         for (int i=0; i < list.size(); i++)
         {

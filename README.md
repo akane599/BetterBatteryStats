@@ -11,7 +11,7 @@ BetterBatteryStats is an open source project unter the terms of the Apache 2.0 L
 | Gradle | 8.14.3 |
 | JDK | 17 or later |
 | `compileSdk` / `targetSdk` | 36 (Android 16) |
-| `minSdk` | 23 (Android 6.0) |
+| `minSdk` | 24 (Android 7.0 — the floor for the Shizuku API) |
 
 Dependency and SDK versions live in the version catalog at
 [`gradle/libs.versions.toml`](gradle/libs.versions.toml) — change them there, not in
@@ -22,6 +22,12 @@ Dependency and SDK versions live in the version catalog at
 ./gradlew assembleXdaeditionRelease   # release build; unsigned unless a keystore is configured
 ./gradlew test lint                   # unit tests and lint
 ```
+
+A debug APK is also built by GitHub Actions for every push and pull request
+([`.github/workflows/build.yml`](.github/workflows/build.yml)) and attached to the run as an
+artifact, so a change can be installed without a local Android SDK. That workflow also runs the unit
+tests and fails on any lint **error** or **fatal** (warnings do not block it). The CircleCI pipeline
+still owns the signed release and Play publishing, because it has the keys.
 
 Both flavours build without any of the CI secrets below: when a keystore or the Play
 service-account file is absent, the corresponding signing config and the Play Publisher plugin are
@@ -42,14 +48,29 @@ constrain that:
 
 The app detects which of these applies and says so, in Diagnostics and above the stat list, rather
 than showing an empty list. What can still be collected on Android 14 and later comes from parsing
-`dumpsys batterystats`, which needs the `DUMP` and `PACKAGE_USAGE_STATS` permissions — granted
-either with root or over adb:
+`dumpsys batterystats`, which needs `android.permission.DUMP` — a permission no ordinary app can
+hold.
+
+### Getting the permissions
+
+There are three ways, and the app uses whichever is available, in this order:
+
+1. **Root.** Unchanged from before.
+2. **[Shizuku](https://shizuku.rikka.app/).** The user starts Shizuku once (over adb, or from a
+   rooted device) and authorises BetterBatteryStats. The app then runs `dumpsys` with adb-shell
+   privileges through a Shizuku *user service* — see `app/src/main/java/.../shizuku/`. Diagnostics
+   shows the Shizuku state and offers two buttons: one to request Shizuku's authorisation, one to
+   have Shizuku run the `pm grant` calls below on the app's behalf.
+3. **adb, by hand.**
 
 ```
 adb shell pm grant com.asksven.betterbatterystats android.permission.DUMP
 adb shell pm grant com.asksven.betterbatterystats android.permission.PACKAGE_USAGE_STATS
 adb shell pm grant com.asksven.betterbatterystats android.permission.BATTERY_STATS
 ```
+
+`PrivilegedShell` picks the backend; the dumpsys parsers go through it and do not know which one
+served them. Diagnostics reports the choice.
 
 ## Signing
 

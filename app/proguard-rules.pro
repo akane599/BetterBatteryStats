@@ -54,6 +54,17 @@
 }
 
 # ---------------------------------------------------------------------------
+# Shizuku loads the user service by class name inside its own process, so the name and the
+# constructor it looks for have to survive. The AIDL stub is reached reflectively on both sides.
+# ---------------------------------------------------------------------------
+-keep class com.asksven.betterbatterystats.shizuku.ShellService { *; }
+-keep interface com.asksven.betterbatterystats.shizuku.IShellService { *; }
+-keep class com.asksven.betterbatterystats.shizuku.IShellService$* { *; }
+-keep class rikka.shizuku.** { *; }
+-keep class rikka.sui.** { *; }
+-dontwarn rikka.shizuku.**
+
+# ---------------------------------------------------------------------------
 # Preferences are inflated from res/xml by class name.
 # ---------------------------------------------------------------------------
 -keep class com.asksven.betterbatterystats.contrib.SeekBarPreference {

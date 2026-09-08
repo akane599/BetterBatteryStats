@@ -1,0 +1,134 @@
+name: Build
+
+# Produces an installable debug APK for every push and pull request, so a change can be tried on a
+# device without a local Android SDK. Release builds need signing keys that are not in the
+# repository, so they stay in the CircleCI pipeline that owns those secrets.
+on:
+  push:
+    branches: ['**']
+    tags-ignore: ['**']
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      variant:
+        description: 'Gradle variant to assemble'
+        required: true
+        default: 'assembleXdaeditionDebug'
+        type: choice
+        options:
+          - assembleXdaeditionDebug
+          - assembleXdaeditionRelease
+
+permissions:
+  contents: read
+
+concurrency:
+  # A new push supersedes the build of the commit it replaces.
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  apk:
+    name: Debug APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Accept SDK licences and install build tools
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" \
+            'platforms;android-36' 'build-tools;36.0.0'
+
+      - name: Assemble
+        run: ./gradlew ${{ inputs.variant || 'assembleXdaeditionDebug' }} --stacktrace
+
+      - name: Report APK size
+        run: |
+          {
+            echo '### APK'
+            echo
+            echo '| File | Size |'
+            echo '| --- | ---: |'
+            find app/build/outputs/apk -name '*.apk' -printf '| `%f` | %s bytes |\n'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          # The commit is in the name so a downloaded APK can be traced back to a build.
+          name: betterbatterystats-${{ github.sha }}
+          path: app/build/outputs/apk/**/*.apk
+          if-no-files-found: error
+          retention-days: 30
+
+  check:
+    name: Tests and lint
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Accept SDK licences and install build tools
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" \
+            'platforms;android-36' 'build-tools;36.0.0'
+
+      - name: Unit tests
+        run: ./gradlew testXdaeditionDebugUnitTest --stacktrace
+
+      - name: Lint
+        run: ./gradlew lintXdaeditionDebug --stacktrace
+
+      # Lint is configured with abortOnError false so that a new warning does not block a build; the
+      # errors and fatals are the ones worth failing on, and the branch currently has none.
+      - name: Fail on lint errors
+        run: |
+          python3 - <<'PY'
+          import sys, xml.etree.ElementTree as ET
+
+          report = 'app/build/reports/lint-results-xdaeditionDebug.xml'
+          issues = ET.parse(report).getroot()
+          bad = [i for i in issues if i.get('severity') in ('Error', 'Fatal')]
+
+          for i in bad:
+              location = i.find('location')
+              where = ''
+              if location is not None:
+                  where = '%s:%s: ' % (location.get('file', ''), location.get('line', ''))
+              print('::error::%s[%s] %s' % (where, i.get('id'), i.get('message')))
+
+          print('%d lint error(s)/fatal(s), %d issue(s) total' % (len(bad), len(list(issues))))
+          sys.exit(1 if bad else 0)
+          PY
+
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reports-${{ github.sha }}
+          path: |
+            app/build/reports/**
+            app/build/test-results/**
+          if-no-files-found: warn
+          retention-days: 14

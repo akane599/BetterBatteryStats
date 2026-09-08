@@ -9,6 +9,7 @@ import android.content.pm.PackageManager;
 import android.util.Log;
 
 import com.asksven.android.common.NonRootShell;
+import com.asksven.android.common.PrivilegedShell;
 import com.asksven.android.common.privateapiproxies.Process;
 import com.asksven.android.common.privateapiproxies.StatElement;
 import com.asksven.android.common.utils.DateUtils;
@@ -53,7 +54,7 @@ public class ProcessStatsDumpsys
 		
 		List<String> res = null;
 		
-		res = NonRootShell.getInstance().run("dumpsys batterystats");
+		res = PrivilegedShell.run("dumpsys batterystats");
 
 		HashMap<String, List<Process>> xrefUserNames = getProcesses(res);
 

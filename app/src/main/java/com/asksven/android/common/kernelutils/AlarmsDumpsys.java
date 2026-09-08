@@ -26,6 +26,7 @@ import android.util.Log;
 
 import com.asksven.android.common.CommonLogSettings;
 import com.asksven.android.common.NonRootShell;
+import com.asksven.android.common.PrivilegedShell;
 import com.asksven.android.common.privateapiproxies.Alarm;
 import com.asksven.android.common.privateapiproxies.StatElement;
 
@@ -49,7 +50,7 @@ public class AlarmsDumpsys
 		
 		List<String> res = null;
 
-		res = NonRootShell.getInstance().run("dumpsys alarm");
+		res = PrivilegedShell.run("dumpsys alarm");
 
 		if (sdk < 17) // Build.VERSION_CODES.JELLY_BEAN_MR1)
 		{

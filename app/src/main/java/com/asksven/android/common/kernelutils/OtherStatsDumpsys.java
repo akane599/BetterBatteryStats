@@ -7,6 +7,7 @@ import android.os.SystemClock;
 import android.util.Log;
 
 import com.asksven.android.common.NonRootShell;
+import com.asksven.android.common.PrivilegedShell;
 
 import com.asksven.android.common.privateapiproxies.Misc;
 import com.asksven.android.common.privateapiproxies.StatElement;
@@ -43,7 +44,7 @@ public class OtherStatsDumpsys
 		List<String> res = null;
 		boolean useRoot = false;
 
-        res = NonRootShell.getInstance().run("dumpsys batterystats");
+        res = PrivilegedShell.run("dumpsys batterystats");
 
 		//List<String> res = getTestData();
 		

@@ -4,7 +4,7 @@ agp = "8.13.2"
 playPublisher = "3.9.1"
 compileSdk = "36"
 targetSdk = "36"
-minSdk = "23"
+minSdk = "24"
 
 # AndroidX
 activity = "1.12.4"
@@ -25,6 +25,7 @@ jackson = "1.9.13"
 material = "1.13.0"
 ckchangelog = "1.2.2"
 dashclock = "2.0.0"
+shizuku = "13.1.5"
 
 # Test
 junit = "4.13.2"
@@ -52,6 +53,8 @@ jackson-core = { module = "org.codehaus.jackson:jackson-core-asl", version.ref =
 jackson-mapper = { module = "org.codehaus.jackson:jackson-mapper-asl", version.ref = "jackson" }
 ckchangelog = { module = "de.cketti.library.changelog:ckchangelog", version.ref = "ckchangelog" }
 dashclock-api = { module = "com.google.android.apps.dashclock:dashclock-api", version.ref = "dashclock" }
+shizuku-api = { module = "dev.rikka.shizuku:api", version.ref = "shizuku" }
+shizuku-provider = { module = "dev.rikka.shizuku:provider", version.ref = "shizuku" }
 
 junit = { module = "junit:junit", version.ref = "junit" }
 mockito-core = { module = "org.mockito:mockito-core", version.ref = "mockito" }

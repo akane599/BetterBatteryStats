@@ -89,6 +89,19 @@
         android:enableOnBackInvokedCallback="true"
         android:theme="@style/Theme.Bbs.Auto">
 
+        <!--
+            Shizuku hands the app its binder through this provider. It must be exported and
+            permission-protected exactly as documented, or Shizuku cannot reach it.
+        -->
+        <provider
+            android:name="rikka.shizuku.ShizukuProvider"
+            android:authorities="${applicationId}.shizuku"
+            android:multiprocess="false"
+            android:enabled="true"
+            android:exported="true"
+            android:permission="android.permission.INTERACT_ACROSS_USERS_FULL"
+            tools:ignore="ExportedContentProvider" />
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.provider"

@@ -18,7 +18,9 @@ package com.asksven.android.common.privateapiproxies;
 import android.content.Context;
 import android.os.Build;
 
+import com.asksven.android.common.PrivilegedShell;
 import com.asksven.android.common.utils.SysUtils;
+import com.asksven.betterbatterystats.shizuku.ShizukuShell;
 
 /**
  * Answers the one question the whole app depends on: can the detailed battery statistics be read on
@@ -59,6 +61,12 @@ public final class BatteryStatsAvailability
 		/** BATTERY_STATS / DUMP / PACKAGE_USAGE_STATS have not been granted. */
 		MISSING_PERMISSIONS,
 
+		/**
+		 * The internal API is out of reach, but a privileged shell (root or Shizuku) can still run
+		 * {@code dumpsys batterystats}, so part of the picture is available.
+		 */
+		DUMPSYS_ONLY,
+
 		/** The path is theoretically open but the service did not return usable data. */
 		UNAVAILABLE
 	}
@@ -92,6 +100,13 @@ public final class BatteryStatsAvailability
 	{
 		if (!BatteryStatsProxy.isImplementationClassAvailable(context))
 		{
+			// A privileged shell can still run `dumpsys batterystats`, which is the only remaining
+			// source on Android 14 and later. Say so, rather than reporting a dead end.
+			if (PrivilegedShell.getBackend() != PrivilegedShell.Backend.UNPRIVILEGED)
+			{
+				return Status.DUMPSYS_ONLY;
+			}
+
 			// On Android 14+ this is expected and permanent. On older releases the class is there,
 			// so a failure to load it means the non-SDK API restrictions blocked the lookup.
 			return isPlatformSupported() ? Status.HIDDEN_API_BLOCKED : Status.REMOVED_FROM_PLATFORM;
@@ -122,7 +137,13 @@ public final class BatteryStatsAvailability
 		switch (status)
 		{
 			case REMOVED_FROM_PLATFORM:
-				resId = com.asksven.betterbatterystats.R.string.STATS_REMOVED_FROM_PLATFORM;
+				// Point at the way out rather than only at the wall, when there is one.
+				resId = ShizukuShell.isShizukuRunning()
+						? com.asksven.betterbatterystats.R.string.STATS_SHIZUKU_PERMISSION_NEEDED
+						: com.asksven.betterbatterystats.R.string.STATS_REMOVED_FROM_PLATFORM;
+				break;
+			case DUMPSYS_ONLY:
+				resId = com.asksven.betterbatterystats.R.string.STATS_DUMPSYS_ONLY;
 				break;
 			case HIDDEN_API_BLOCKED:
 				resId = com.asksven.betterbatterystats.R.string.STATS_HIDDEN_API_BLOCKED;

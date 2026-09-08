@@ -1,34 +1,67 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
-    android:layout_height="fill_parent"
+    android:layout_height="match_parent"
     android:orientation="vertical"
     android:id="@+id/main_layout">
 
     <include layout="@layout/toolbar_icon" />
 
-    <!-- do not translate: strings are set in SystemAppActivity -->
-    <RelativeLayout
+    <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingLeft="10dp"
+        android:paddingRight="10dp"
+        android:paddingTop="8dp">
+
+        <TextView
+            android:id="@+id/textViewShizukuState"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="@dimen/text_size_medium"
+            tools:text="Shizuku: authorised (uid 2000)" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/buttonShizukuPermission"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/shizuku_request_permission" />
+
+            <Button
+                android:id="@+id/buttonShizukuGrant"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/shizuku_grant_permissions" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- do not translate: strings are set in DiagnosticsActivity -->
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
         android:paddingBottom="4dp"
         android:paddingLeft="10dp"
         android:paddingRight="10dp"
-        android:paddingTop="10dp" >
-
+        android:paddingTop="10dp">
 
         <TextView
             android:id="@+id/textViewDiagnostics"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:layout_centerHorizontal="false"
+            android:layout_height="wrap_content"
             android:text="Call Stack..."
-            android:textSize="10sp"
+            android:textSize="12sp"
             android:textIsSelectable="true"
             android:typeface="monospace" />
 
-
-
-    </RelativeLayout>
+    </ScrollView>
 
 </LinearLayout>

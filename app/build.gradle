@@ -109,6 +109,8 @@ android {
 
     buildFeatures {
         buildConfig true
+        // The Shizuku user service is reached over an AIDL interface.
+        aidl true
     }
 
     packaging {
@@ -242,6 +244,10 @@ dependencies {
     implementation libs.jackson.mapper
     implementation libs.ckchangelog
     implementation libs.dashclock.api
+
+    // Shizuku: lets the app run `dumpsys` with adb-shell privileges without root.
+    implementation libs.shizuku.api
+    implementation libs.shizuku.provider
 
     testImplementation libs.junit
     testImplementation libs.mockito.core
