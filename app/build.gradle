@@ -2,11 +2,12 @@ plugins {
     alias(libs.plugins.android.application)
 }
 
-// The Play Publisher plugin needs a service-account credentials file that is only present on CI.
-// Applying it unconditionally breaks local/offline builds, so it is opt-in.
+// The Play Publisher plugin needs a service-account credentials file that only CI has, and its
+// tasks fail at configuration time without one. It is declared in the root build and applied here
+// only when the credentials are actually present, so local and offline builds are unaffected.
 def playCredentials = file('sa-google-play.json')
 if (playCredentials.exists()) {
-    apply plugin: 'com.github.triplet.play'
+    apply plugin: libs.plugins.play.publisher.get().pluginId
     play {
         track = 'beta'
         serviceAccountCredentials = playCredentials

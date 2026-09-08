@@ -267,7 +267,7 @@ public class StatsActivity extends ActionBarListActivity
 				// Save that the app has been launched
 				SharedPreferences.Editor editor = prefs.edit();
 				editor.putBoolean("launched", true);
-				editor.commit();
+				editor.apply();
 
 				// persist the "since unplugged" reference and refresh the widgets
 				ReferenceWorker.enqueue(this, ReferenceWorker.Kind.UNPLUGGED);
@@ -277,14 +277,14 @@ public class StatsActivity extends ActionBarListActivity
 
 	        SharedPreferences.Editor updater = sharedPrefs.edit();
 	        updater.putString("last_release", strCurrentRelease);
-	        updater.commit();
+	        updater.apply();
 		}
 		else if (!strLastRelease.equals(strCurrentRelease))
     	{
 	        // save the current release to properties so that the dialog won't be shown till next version
 	        SharedPreferences.Editor updater = sharedPrefs.edit();
 	        updater.putString("last_release", strCurrentRelease);
-	        updater.commit();
+	        updater.apply();
     	}
 
 		///////////////////////////////////////////////

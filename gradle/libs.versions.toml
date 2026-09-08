@@ -1,6 +1,7 @@
 [versions]
 # Android Gradle Plugin / SDK levels
 agp = "8.13.2"
+playPublisher = "3.9.1"
 compileSdk = "36"
 targetSdk = "36"
 minSdk = "23"
@@ -60,3 +61,4 @@ espresso-core = { module = "androidx.test.espresso:espresso-core", version.ref =
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
+play-publisher = { id = "com.github.triplet.play", version.ref = "playPublisher" }
