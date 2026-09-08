@@ -11,13 +11,20 @@
         <item name="popupTheme">@style/Theme.MaterialComponents.DayNight</item>
     </style>
 
-    <style name="Theme.Bbs.Dark" parent="@style/ThemeOverlay.MaterialComponents.Dark">
+    <!--
+        This used to inherit from ThemeOverlay.MaterialComponents.Dark. A ThemeOverlay only carries
+        the colour attributes meant to be layered onto an existing theme, so using one as an
+        activity theme left the window without a background or default text appearances. It now
+        inherits from the full dark theme, matching the Light and Auto variants.
+    -->
+    <style name="Theme.Bbs.Dark" parent="@style/Theme.MaterialComponents.NoActionBar">
         <item name="android:forceDarkAllowed" tools:targetApi="q">true</item>
         <item name="colorPrimary">@color/colorPrimaryDark</item>
         <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
         <item name="logo">@mipmap/ic_launcher</item>
         <item name="colorAccent">@color/color_accent</item>
         <item name="popupTheme">@style/ThemeOverlay.MaterialComponents.Dark</item>
+        <item name="android:windowBackground">?attr/colorSurface</item>
     </style>
 
     <style name="Theme.Bbs.Light" parent="@style/Theme.MaterialComponents.Light.NoActionBar">
