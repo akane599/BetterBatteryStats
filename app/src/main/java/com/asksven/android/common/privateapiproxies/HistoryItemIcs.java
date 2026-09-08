@@ -18,8 +18,6 @@ package com.asksven.android.common.privateapiproxies;
 
 import java.io.Serializable;
 
-import android.os.Parcel;
-import android.os.Parcelable;
 
 import com.asksven.android.common.utils.DateUtils;
 
@@ -31,7 +29,7 @@ import com.asksven.android.common.utils.DateUtils;
  *
  *
  */
-public class HistoryItemIcs extends HistoryItem implements Serializable, Parcelable
+public class HistoryItemIcs extends HistoryItem implements Serializable
 {
 	static final long serialVersionUID = 1L;
 	private static final byte CMD_NULL = 0;

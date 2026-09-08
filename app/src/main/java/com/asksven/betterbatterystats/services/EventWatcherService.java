@@ -191,7 +191,10 @@ public class EventWatcherService extends Service
 				.setContentIntent(pendingIntent)
 				.build();
 
-		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q)
+		// The type is only required — and `specialUse` only exists — from Android 14 on. Passing it
+		// on an older release would fail, since the platform validates the type against what the
+		// manifest declares and would not recognise `specialUse` there either.
+		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
 		{
 			startForeground(FOREGROUND_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE);
 		}

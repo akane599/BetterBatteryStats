@@ -52,8 +52,12 @@
     <uses-permission android:name="android.permission.READ_PRECISE_PHONE_STATE"
         tools:ignore="ProtectedPermissions" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    <uses-permission android:name="android.permission.INTERACT_ACROSS_USERS" />
-    <uses-permission android:name="android.permission.QUERY_USERS" />
+    <!-- Like DUMP and BATTERY_STATS above: only granted with root or via adb, and the app degrades
+         gracefully without them. -->
+    <uses-permission android:name="android.permission.INTERACT_ACROSS_USERS"
+        tools:ignore="ProtectedPermissions" />
+    <uses-permission android:name="android.permission.QUERY_USERS"
+        tools:ignore="ProtectedPermissions" />
 
     <queries>
         <intent>
