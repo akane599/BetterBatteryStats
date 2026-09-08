@@ -55,7 +55,11 @@ public class TextAppWidget extends AppWidgetProvider
 		{
 			Log.i(TAG, "onUpdate method called, starting service and setting alarm");
 		}
-		super.onUpdate(context, appWidgetManager, appWidgetIds);
+		if (Build.VERSION.SDK_INT >= 34) {
+            com.asksven.betterbatterystats.modern.ModernWidget.render(context, getClass());
+            return;
+        }
+        super.onUpdate(context, appWidgetManager, appWidgetIds);
 		// Update the widgets via the service
 		UpdateTextWidgetService.enqueueWork(context, new Intent());
 
@@ -72,7 +76,11 @@ public class TextAppWidget extends AppWidgetProvider
 	@Override
 	public void onReceive(Context context, Intent intent)
 	{
-		super.onReceive(context, intent);
+		if (Build.VERSION.SDK_INT >= 34) {
+            com.asksven.betterbatterystats.modern.ModernWidget.render(context, getClass());
+            return;
+        }
+        super.onReceive(context, intent);
 
 		if (LogSettings.DEBUG)
 		{
@@ -124,7 +132,11 @@ public class TextAppWidget extends AppWidgetProvider
 	@TargetApi(Build.VERSION_CODES.JELLY_BEAN)
 	public void onAppWidgetOptionsChanged(Context ctx, AppWidgetManager mgr, int appWidgetId, Bundle newOptions)
 	{
-		super.onAppWidgetOptionsChanged(ctx, mgr, appWidgetId, newOptions);
+		if (Build.VERSION.SDK_INT >= 34) {
+            com.asksven.betterbatterystats.modern.ModernWidget.render(ctx, getClass());
+            return;
+        }
+        super.onAppWidgetOptionsChanged(ctx, mgr, appWidgetId, newOptions);
 		drawWidget(ctx, appWidgetId);
 	}
 

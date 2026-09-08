@@ -1,0 +1,42 @@
+name: Android build
+
+on:
+  push:
+    branches: [master, 'codex/**']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - run: sdkmanager 'platforms;android-36' 'build-tools;36.0.0'
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Build and test XDA edition
+        run: bash ./gradlew :app:assembleXdaeditionDebug :app:testXdaeditionDebugUnitTest :app:lintXdaeditionDebug --stacktrace
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bbs-test-and-lint-reports
+          path: |
+            app/build/reports/
+            app/build/test-results/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: BetterBatteryStats-Android16-debug
+          path: app/build/outputs/apk/xdaedition/debug/*.apk
+          if-no-files-found: error

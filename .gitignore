@@ -14,3 +14,7 @@
 /app/src/xdaedition/google-services.json
 
 secret-env-plain
+
+**/build/
+*.keystore
+*.jks

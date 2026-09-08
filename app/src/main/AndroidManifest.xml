@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
-    package="com.asksven.betterbatterystats"
     android:installLocation="internalOnly">
 
 
@@ -37,7 +36,7 @@
     <!-- retrieve ps list (running tasks) -->
     <uses-permission android:name="android.permission.GET_TASKS" />
     <!-- tentative to fix bug #173 -->
-    <uses-permission android:name="android.permission.BLUETOOTH" />
+    <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
     <!-- need to hold wakelocks for writing operations -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <!-- needed starting with SDK 28 -->
@@ -46,9 +45,6 @@
     <uses-permission android:name="android.permission.READ_PRECISE_PHONE_STATE"
         tools:ignore="ProtectedPermissions" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
-    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
-    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
     <uses-permission android:name="android.permission.INTERACT_ACROSS_USERS" />
     <uses-permission android:name="android.permission.QUERY_USERS" />
 
@@ -68,17 +64,27 @@
 
     <uses-feature
         android:name="android.software.app_widgets"
-        android:required="true" />
+        android:required="false" />
 
 
     <application
         android:name=".BbsApplication"
-        android:allowBackup="true"
+        android:allowBackup="false"
         android:fullBackupContent="@xml/backup_rules"
         android:icon="@mipmap/ic_launcher"
         android:label="BBS"
         android:supportsRtl="true"
         android:theme="@style/Theme.Bbs.Auto">
+
+        <provider
+            android:name="rikka.shizuku.ShizukuProvider"
+            android:authorities="${applicationId}.shizuku"
+            android:multiprocess="false"
+            android:enabled="true"
+            android:exported="true"
+            android:permission="android.permission.INTERACT_ACROSS_USERS_FULL" />
+
+        <activity android:name=".modern.ModernStatsActivity" android:exported="false" />
 
         <provider
             android:name="androidx.core.content.FileProvider"
@@ -125,7 +131,7 @@
         <activity
             android:name=".ImportExportPreferencesActivity"
             android:configChanges="orientation|screenSize"
-            android:exported="true">
+            android:exported="false">
             <intent-filter>
                 <action android:name="com.asksven.betterbatterystats.ImportExportPreferencesActivity" />
 
@@ -134,7 +140,7 @@
         </activity>
         <activity
             android:name=".SystemAppActivity"
-            android:exported="true">
+            android:exported="false">
             <intent-filter>
                 <action android:name="com.asksven.betterbatterystats.SystemAppActivity" />
 
@@ -143,7 +149,7 @@
         </activity>
         <activity
             android:name=".DiagnosticsActivity"
-            android:exported="true">
+            android:exported="false">
             <intent-filter>
                 <action android:name="com.asksven.betterbatterystats.DiagnosticsActivity" />
 
