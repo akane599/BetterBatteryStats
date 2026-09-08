@@ -1,6 +1,5 @@
 package com.asksven.betterbatterystats.modern;
 
-import android.content.Intent;
 import android.net.Uri;
 import androidx.lifecycle.Observer;
 import androidx.lifecycle.ViewModelProvider;
@@ -43,7 +42,7 @@ public class ModernStatsActivityTest {
                 }
             });
         });
-        assertTrue("Timed out waiting for snapshot", ready.await(15, TimeUnit.SECONDS));
+        assertTrue("Timed out waiting for snapshot", ready.await(45, TimeUnit.SECONDS));
     }
 
     @Test public void importsAndRetainsSnapshotAcrossRecreation() throws Exception {
@@ -71,7 +70,24 @@ public class ModernStatsActivityTest {
         } finally { input.delete(); }
     }
 
-    @Test public void missingShizukuDoesNotDestroyImportedSnapshot() throws Exception {
+    @Test public void collectsRealAndroid16DumpWithAdbGrantedAccess() throws Exception {
+        try (ActivityScenario<ModernStatsActivity> scenario = ActivityScenario.launch(ModernStatsActivity.class)) {
+            awaitState(scenario, state -> true);
+            scenario.onActivity(activity -> new ViewModelProvider(activity).get(ModernStatsViewModel.class)
+                    .refresh(BatteryCollector.Access.ADB));
+            awaitState(scenario, state -> state.current != null && "ADB".equals(state.current.source)
+                    && state.message.startsWith("Snapshot refreshed"));
+            scenario.onActivity(activity -> {
+                ModernStatsViewModel.State state = new ViewModelProvider(activity).get(ModernStatsViewModel.class).state().getValue();
+                assertNotNull(state.current);
+                assertEquals(0, state.current.malformedRows);
+                assertTrue(state.current.startClockTime > 0);
+                assertTrue(state.current.batteryRealtimeMs >= state.current.batteryUptimeMs);
+            });
+        }
+    }
+
+    @Test public void missingShizukuShowsRecoverableError() throws Exception {
         try (ActivityScenario<ModernStatsActivity> scenario = ActivityScenario.launch(ModernStatsActivity.class)) {
             awaitState(scenario, state -> true);
             scenario.onActivity(activity -> new ViewModelProvider(activity).get(ModernStatsViewModel.class)

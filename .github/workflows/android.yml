@@ -28,6 +28,9 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
       - name: Build and test XDA edition
         run: bash ./gradlew :app:assembleXdaeditionDebug :app:testXdaeditionDebugUnitTest :app:lintXdaeditionDebug --stacktrace
+      - name: Summarize tests and new backend lint
+        if: always()
+        run: python scripts/ci_summary.py
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -64,6 +67,10 @@ jobs:
           arch: x86_64
           disable-animations: true
           script: |
+            bash ./gradlew :app:assembleXdaeditionDebug :app:assembleXdaeditionDebugAndroidTest
+            adb install -r app/build/outputs/apk/xdaedition/debug/*.apk
+            adb shell pm grant com.asksven.betterbatterystats_xdaedition.modern android.permission.DUMP
+            adb shell appops set com.asksven.betterbatterystats_xdaedition.modern GET_USAGE_STATS allow
             bash ./gradlew :app:connectedXdaeditionDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.asksven.betterbatterystats.modern.ModernStatsActivityTest --stacktrace
             adb pull /sdcard/Android/data/com.asksven.betterbatterystats_xdaedition.modern/files/modern-dashboard.png modern-dashboard.png
       - uses: actions/upload-artifact@v4

@@ -74,6 +74,10 @@ public final class ModernStatsActivity extends AppCompatActivity {
         setTheme(R.style.Theme_Bbs_Modern);
         super.onCreate(savedState);
         WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
+        boolean dark = (getResources().getConfiguration().uiMode
+                & android.content.res.Configuration.UI_MODE_NIGHT_MASK) == android.content.res.Configuration.UI_MODE_NIGHT_YES;
+        WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView()).setAppearanceLightStatusBars(!dark);
+        WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView()).setAppearanceLightNavigationBars(!dark);
         setContentView(R.layout.modern_stats);
         View root = findViewById(R.id.modern_root);
         ViewCompat.setOnApplyWindowInsetsListener(root, (view, windowInsets) -> {

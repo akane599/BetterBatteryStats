@@ -11,7 +11,7 @@ public final class ReportExporter {
     public static String render(BatterySnapshot current, BatterySnapshot baseline, boolean compare) {
         BatterySnapshot data = compare ? SnapshotComparison.between(baseline, current) : current;
         StringBuilder out = new StringBuilder("BetterBatteryStats 4 · Battery report\n");
-        out.append("Captured: ").append(new Date(current.capturedAtMs)).append('\n');
+        out.append("Imported report".equals(current.source) ? "Imported (capture time unknown): " : "Captured: ").append(new Date(current.capturedAtMs)).append('\n');
         out.append("Access: ").append(current.source).append('\n');
         out.append("Period: ").append(compare ? "Since baseline " + new Date(baseline.capturedAtMs)
                 : "Since Android statistics reset " + new Date(current.startClockTime)).append('\n');

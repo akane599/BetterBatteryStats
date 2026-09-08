@@ -9,6 +9,5 @@
     <style name="Theme.Bbs.Modern" parent="Theme.Material3.DayNight.NoActionBar">
         <item name="colorPrimary">#147D70</item>
         <item name="colorOnPrimary">#FFFFFF</item>
-        <item name="android:windowLightStatusBar">false</item>
     </style>
 </resources>
