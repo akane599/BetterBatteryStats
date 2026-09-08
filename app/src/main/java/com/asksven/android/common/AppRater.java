@@ -72,7 +72,7 @@ public class AppRater
 			}
 		}
 
-		editor.commit();
+		editor.apply();
 	}
 
 	public static void showRateDialog(final Context ctx, final SharedPreferences.Editor editor)
@@ -95,7 +95,7 @@ public class AppRater
 				if (editor != null)
 				{
 					editor.putBoolean("dontshowagain", true);
-					editor.commit();
+					editor.apply();
 				}
 				dialog.dismiss();
 			}
@@ -120,7 +120,7 @@ public class AppRater
 				if (editor != null)
 				{
 					editor.putBoolean("dontshowagain", true);
-					editor.commit();
+					editor.apply();
 				}
 				dialog.dismiss();
 			}

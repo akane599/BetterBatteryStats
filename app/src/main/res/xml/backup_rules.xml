@@ -1,4 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+    Backup rules for Android 11 (API 30) and earlier; `data_extraction_rules.xml` covers Android 12
+    and later.
+
+    This used to include domain="root" path=".", which backed up the reference database as well.
+    A reference is a snapshot of one device's battery counters, so restoring it onto another device
+    (or onto a wiped one, where the counters restart at zero) yields deltas against a baseline that
+    never existed. Only the settings are worth carrying over.
+-->
 <full-backup-content>
-    <include domain="root" path="."/>
+    <include
+        domain="sharedpref"
+        path="." />
 </full-backup-content>

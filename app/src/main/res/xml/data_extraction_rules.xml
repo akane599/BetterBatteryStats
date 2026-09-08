@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Backup / transfer rules for Android 12 (API 31) and later; `backup_rules.xml` still covers
+    older releases through android:fullBackupContent.
+
+    Only the settings travel. References are snapshots of a *specific device's* battery counters,
+    so restoring them elsewhere — or even onto the same device after a wipe, where the counters
+    restart from zero — would produce deltas against a baseline that never existed.
+
+    Anything not named by an <include> is excluded, so the databases and files need no explicit
+    <exclude>; adding one for a domain that is not included is in fact rejected.
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <include
+            domain="sharedpref"
+            path="." />
+    </cloud-backup>
+    <device-transfer>
+        <include
+            domain="sharedpref"
+            path="." />
+    </device-transfer>
+</data-extraction-rules>

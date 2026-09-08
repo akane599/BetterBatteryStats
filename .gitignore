@@ -14,3 +14,7 @@
 /app/src/xdaedition/google-services.json
 
 secret-env-plain
+
+# Android build outputs
+/app/build
+build/

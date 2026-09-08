@@ -1,52 +1,93 @@
 *Build* [![CircleCI](https://circleci.com/gh/asksven/BetterBatteryStats/tree/master.svg?style=svg)](https://circleci.com/gh/asksven/BetterBatteryStats/tree/master)
 
-#License
-BetterBatteryStats is an open source project unter the terms of the Apache 2.0 License. The license does not apply to the use of the names "BetterBatteryStats" and "Better Battery Stats", nor to the icon / artwork created for BetterBatteryStats. 
+# License
+BetterBatteryStats is an open source project unter the terms of the Apache 2.0 License. The license does not apply to the use of the names "BetterBatteryStats" and "Better Battery Stats", nor to the icon / artwork created for BetterBatteryStats.
 
 # Build
-In order to build (with gradle / Android Studio) following changes to the local project are required
 
-## HockeyApp
-The environment variable `HOCKEYAPP_APP_ID` must be set to a valid value
+| | |
+|---|---|
+| Android Gradle Plugin | 8.13.2 |
+| Gradle | 8.14.3 |
+| JDK | 17 or later |
+| `compileSdk` / `targetSdk` | 36 (Android 16) |
+| `minSdk` | 23 (Android 6.0) |
+
+Dependency and SDK versions live in the version catalog at
+[`gradle/libs.versions.toml`](gradle/libs.versions.toml) — change them there, not in
+`app/build.gradle`.
+
+```
+./gradlew assembleXdaeditionDebug     # debug build, no keystore needed
+./gradlew assembleXdaeditionRelease   # release build; unsigned unless a keystore is configured
+./gradlew test lint                   # unit tests and lint
+```
+
+Both flavours build without any of the CI secrets below: when a keystore or the Play
+service-account file is absent, the corresponding signing config and the Play Publisher plugin are
+simply not wired up.
+
+## A note on what works on which Android release
+
+The detailed statistics are read out of `com.android.internal.os.BatteryStatsImpl`, which the app
+obtains as a parcel from the `batterystats` system service through reflection. Two platform changes
+constrain that:
+
+- **Android 9 (API 28)** introduced non-SDK interface restrictions. The reflective calls need those
+  lifted, which on a rooted device means `adb shell settings put global hidden_api_policy 1`.
+- **Android 14 (API 34)** moved `BatteryStatsImpl` from `framework.jar` to `services.jar`
+  (`com.android.server.power.stats`), where an app process cannot reach it, and replaced
+  `IBatteryStats.getStatistics()` / `getStatisticsStream()` with `getBatteryUsageStats()`. No
+  permission and no amount of root restores the old path: the code is not in the process.
+
+The app detects which of these applies and says so, in Diagnostics and above the stat list, rather
+than showing an empty list. What can still be collected on Android 14 and later comes from parsing
+`dumpsys batterystats`, which needs the `DUMP` and `PACKAGE_USAGE_STATS` permissions — granted
+either with root or over adb:
+
+```
+adb shell pm grant com.asksven.betterbatterystats android.permission.DUMP
+adb shell pm grant com.asksven.betterbatterystats android.permission.PACKAGE_USAGE_STATS
+adb shell pm grant com.asksven.betterbatterystats android.permission.BATTERY_STATS
+```
 
 ## Signing
 
-The signing config uses environment variables:
-```
-    signingConfigs {
-        release {
-            storeFile file(System.getenv("KEYSTORE_RELEASE"))
-            storePassword System.getenv("KEYSTORE_PASSWORD")
-            keyAlias System.getenv("KEY_ALIAS")
-            keyPassword System.getenv("KEY_PASSWORD")
-        }
-        debug {
-            storeFile file(System.getenv("KEYSTORE_DEBUG"))
-        }
-    }
-```
+The signing configs read environment variables, and are only attached to a variant when the
+keystore file they point at actually exists:
 
-- `KEYSTORE_RELEASE` points to the release `.keystore` file
-- `KEYSTORE_DEBUG` points to the debug `.keystore` file
-- `KEY_ALIAS`  defines the alias name
-- `KEY_PASSWORD` is the keystore password
+- `KEYSTORE_RELEASE` points to the release `.keystore` file (default `app/app.keystore`)
+- `KEYSTORE_DEBUG` points to the debug `.keystore` file (default `app/app.keystore`)
+- `KEY_ALIAS` defines the alias name
+- `KEY_PASSWORD` is the key password
+- `KEYSTORE_PASSWORD` is the keystore password
 
+## R8
 
- 
+Release builds are minified and resource-shrunk. References are persisted as Java-serialized blobs
+in SQLite, so renaming any class or field on that object graph would make every reference already
+on a user's device unreadable after an update — silently. `app/proguard-rules.pro` keeps that graph,
+and the `verifyPersistedModelNotObfuscated` task (which runs automatically after any
+`assemble*Release`) reads R8's mapping output and fails the build if a persisted type or field was
+renamed. If you touch the keep rules, that task is what tells you whether you broke them.
+
 # Continuous Integration
 
-The continuous integration (in this example CircleCI) needs to have access to some private settings.
+The pipeline is defined in [`.circleci/config.yml`](.circleci/config.yml). It needs access to some
+private settings.
 
 ## Google play publishing
 
 ### Publishing profile
-The encrypted file (`sa-google-play.json-cipher`) is located in `/app`, and referenced by the gradle build.
+The encrypted file (`sa-google-play.json-cipher`) is located in `/app`, and referenced by the gradle
+build. The Play Publisher plugin is only applied when the decrypted `app/sa-google-play.json` is
+present, so its absence does not affect local builds.
 
- See also https://github.com/Triple-T/gradle-play-publisher.
+See also https://github.com/Triple-T/gradle-play-publisher.
 
 ### Deploy task
 
-In `circle.yml` we define that all the google play publishing (to beta) is triggered on tag `release-*`
+The Google Play publishing (to beta) runs from `master` after a manual approval step.
 
 ## Encrypt
 
@@ -54,15 +95,16 @@ In `circle.yml` we define that all the google play publishing (to beta) is trigg
 
 See also https://github.com/circleci/encrypted-files
 
-## Decrypt (on CircleCI, as defined in `circle.yml` and using an env-variable `KEY`)
+## Decrypt (on CircleCI, as defined in `.circleci/config.yml` and using an env-variable `KEY`)
 
 `openssl enc -in encrypted-cipher -out encrypted -d -aes256 -k $KEY`
 
 ## The signing keys
 
-The environment variables `$KEYSTORE_RELEASE`, `$KEYSTORE_DEBUG`, `$KEY_ALIAS`, `$KEY_PASSWORD` and `$KEYSTORE_PASSWORD`must be set.
+The environment variables `$KEYSTORE_RELEASE`, `$KEYSTORE_DEBUG`, `$KEY_ALIAS`, `$KEY_PASSWORD` and
+`$KEYSTORE_PASSWORD` must be set.
 
-There variables are set in `secret-env-plain` (not part of the project for obvious reasons).
+These variables are set in `secret-env-plain` (not part of the project for obvious reasons).
 
 In order to run your own build create a file `secret-env-plain` and set the variables:
 ```
@@ -74,10 +116,11 @@ export KEYSTORE_RELEASE=<name-of-release-keystore>
 ```
 and then encrypt this file using `openssl aes-256-cbc -e -in secret-env-plain -out secret-env-cipher -k $KEY`
 
-In the piepline the decyption is done using the script `circleciscripts/decrypt_env_vars.sh` with the `$KEY` stored in circle-ci's env vars.
+In the pipeline the decryption is done using the script `circleciscripts/decrypt_env_vars.sh` with
+the `$KEY` stored in CircleCI's env vars.
 
-As the signing keys are not in the github repo a script `circleciscripts/download_keystore.sh` does the job of downloading and decrypting the keys at build-time.
-For that to happen following addition environment variables must be set:
+As the signing keys are not in the github repo a script `circleciscripts/download_keystore.sh` does
+the job of downloading and decrypting the keys at build-time. For that to happen the following
+additional environment variables must be set:
 - `$KEYSTORE_URI` a public URI from where the files can be downloaded using http
 - `$KEY` the key to decrypt the keystores (same env var as for `google-services.json`)
-

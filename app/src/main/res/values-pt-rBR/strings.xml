@@ -152,10 +152,6 @@
     <!-- System app activity -->
     <string name="expl_system_app">Se seu telefone tem root o BBS irá automaticamente conceder as permissões necessárias.\nPara dispositivos sem root as permissões podem ser concedidas usando o ADB.</string>
 
-    <string name="install_system_app">Instalar como app de sistema</string>
-    <string name="uninstall_system_app">Desinstalar app de sistema</string>
-    <string name="info_installed_system_app">Instalado como app de sistema. Por favor, reinicie para ativar.</string>
-    <string name="info_uninstalled_system_app">App de sistema desinstalado: suas preferências foram restauradas. Por favor reinicice para limpar e atualizar suas preferências.</string>
     <string name="info_succeeded">Êxito</string>
     <string name="info_root_required">Para usar este recurso o app precisa ter permissões root</string>
     <string name="info_unknown_state">Erro: não pôde resolver o que mudou</string>

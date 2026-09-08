@@ -320,9 +320,9 @@ public class ReferenceDBHelper
 		        c.moveToFirst();
 		        for (int i = 0; i < numRows; ++i)
 		        {
-		        	String name = c.getString(c.getColumnIndex("ref_name"));
-		        	long timeCreated = c.getLong(c.getColumnIndex("time_created"));
-		        	String refName = c.getString(c.getColumnIndex("ref_name"));
+		        	String name = c.getString(c.getColumnIndexOrThrow("ref_name"));
+		        	long timeCreated = c.getLong(c.getColumnIndexOrThrow("time_created"));
+		        	String refName = c.getString(c.getColumnIndexOrThrow("ref_name"));
 		        	if ((timeCreated > time) || (refName.equals(Reference.CURRENT_REF_FILENAME)))
 		        	{
 		        		ret.add(name);
@@ -356,8 +356,8 @@ public class ReferenceDBHelper
 		        c.moveToFirst();
 		        for (int i = 0; i < numRows; ++i)
 		        {
-		        	String name = c.getString(c.getColumnIndex("ref_label"));
-		        	long timeCreated = c.getLong(c.getColumnIndex("time_created"));
+		        	String name = c.getString(c.getColumnIndexOrThrow("ref_label"));
+		        	long timeCreated = c.getLong(c.getColumnIndexOrThrow("time_created"));
 		        	if (timeCreated > time)
 		        	{
 		        		ret.add(name);
@@ -426,8 +426,8 @@ public class ReferenceDBHelper
 
 	private Reference createReferenceFromRow(Cursor c)
 	{
-//		return Reference.deserialize(c.getBlob(c.getColumnIndex("ref_blob")));
-		return new Reference(ReferenceDto.unmarshall(c.getBlob(c.getColumnIndex("ref_blob"))));
+//		return Reference.deserialize(c.getBlob(c.getColumnIndexOrThrow("ref_blob")));
+		return new Reference(ReferenceDto.unmarshall(c.getBlob(c.getColumnIndexOrThrow("ref_blob"))));
 
 	}
 

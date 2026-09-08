@@ -93,7 +93,7 @@ public class ImportExportPreferencesActivity extends BaseActivity
 				else
 				{
 					Snackbar
-					  .make(findViewById(android.R.id.content), getString(R.string.info_pref_import_export_failed, BACKUP_FILE), Snackbar.LENGTH_LONG)
+					  .make(findViewById(android.R.id.content), getString(R.string.info_pref_import_export_failed), Snackbar.LENGTH_LONG)
 					  .show();
 					
 				}

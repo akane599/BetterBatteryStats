@@ -15,10 +15,11 @@
  */
 package com.asksven.betterbatterystats;
 
+import android.app.Activity;
+
 import java.util.Map;
 
 import android.content.Context;
-import android.os.AsyncTask;
 import android.os.Bundle;
 import androidx.fragment.app.FragmentManager;
 import androidx.fragment.app.ListFragment;
@@ -28,6 +29,7 @@ import android.util.Log;
 import com.asksven.betterbatterystats.adapters.PermissionsAdapter;
 import com.asksven.betterbatterystats.data.Permission;
 import com.asksven.betterbatterystats.data.StatsProvider;
+import com.asksven.betterbatterystats.util.BackgroundTask;
 
 /**
  * Demonstration of the use of a CursorLoader to load and display contacts data
@@ -85,7 +87,7 @@ public class PermissionsFragmentActivity extends BaseActivity
 				m_permDictionary = StatsProvider.getInstance().getPermissionMap(getActivity());
 			}
 
-			new LoadStatData().execute(getActivity());
+			loadPermissions();
 
 		}
 
@@ -95,36 +97,28 @@ public class PermissionsFragmentActivity extends BaseActivity
 	     * @see android.app.Activity#onCreateOptionsMenu(android.view.Menu)
 	     */
 
-		// @see http://code.google.com/p/makemachine/source/browse/trunk/android/examples/async_task/src/makemachine/android/examples/async/AsyncTaskExample.java
-		// for more details
-		private class LoadStatData extends AsyncTask<Context, Integer, PermissionsAdapter>
+		/**
+		 * Reads the package's requested permissions off the main thread; the adapter is built on the
+		 * main thread, where the Activity it binds to is safe to touch.
+		 */
+		private void loadPermissions()
 		{
-			@Override
-		    protected PermissionsAdapter doInBackground(Context... params)
-		    {
+			final Activity host = getActivity();
+			final String packageName = m_packageName;
 
-				try
-				{
-					m_listViewAdapter = new PermissionsAdapter(getActivity(),
-							StatsProvider.getInstance().getRequestedPermissionListForPackage(getActivity(), m_packageName), m_permDictionary);
+			BackgroundTask.run(host,
+					() -> StatsProvider.getInstance().getRequestedPermissionListForPackage(host, packageName),
+					(permissions, error) ->
+					{
+						if (error != null || permissions == null)
+						{
+							Log.e(TAG, "Loading of the permission list failed");
+							return;
+						}
 
-				}
-				catch (Exception e)
-				{
-					Log.e(TAG, "Loading of alarm stats failed");
-					m_listViewAdapter = null;
-				}
-		    	//StatsActivity.this.setListAdapter(m_listViewAdapter);
-		        // getStatList();
-		        return m_listViewAdapter;
-		    }
-			
-			@Override
-			protected void onPostExecute(PermissionsAdapter o)
-		    {
-				super.onPostExecute(o);
-		    	setListAdapter(o);
-		    }
+						m_listViewAdapter = new PermissionsAdapter(host, permissions, m_permDictionary);
+						setListAdapter(m_listViewAdapter);
+					});
 		}
 	}
 }

@@ -15,9 +15,10 @@
  */
 package com.asksven.betterbatterystats;
 
+import android.app.Activity;
+
 import android.app.ProgressDialog;
 import android.content.Context;
-import android.os.AsyncTask;
 import android.os.Bundle;
 import androidx.fragment.app.FragmentManager;
 import androidx.fragment.app.ListFragment;
@@ -25,6 +26,7 @@ import android.util.Log;
 
 import com.asksven.betterbatterystats.adapters.ServicesAdapter;
 import com.asksven.betterbatterystats.data.StatsProvider;
+import com.asksven.betterbatterystats.util.BackgroundTask;
 
 /**
  * Demonstration of the use of a CursorLoader to load and display contacts data
@@ -72,61 +74,48 @@ public class ReceiversFragmentActivity extends BaseActivity
 			Bundle b = getActivity().getIntent().getExtras();
 			m_packageName = b.getString("package");
 
-			new LoadStatData().execute(getActivity());
+			loadReceivers();
 
 		}
 
 
-		// @see http://code.google.com/p/makemachine/source/browse/trunk/android/examples/async_task/src/makemachine/android/examples/async/AsyncTaskExample.java
-		// for more details
-		private class LoadStatData extends AsyncTask<Context, Integer, ServicesAdapter>
+		/**
+		 * Reads the package's receivers off the main thread; the adapter is built on the main
+		 * thread, where the Activity it binds to is safe to touch.
+		 */
+		private void loadReceivers()
 		{
-			@Override
-		    protected ServicesAdapter doInBackground(Context... params)
-		    {
+			final Activity host = getActivity();
+			final String packageName = m_packageName;
 
-				try
-				{
-					m_listViewAdapter = new ServicesAdapter(getActivity(),
-							StatsProvider.getInstance().getReceiverListForPackage(getActivity(), m_packageName));
+			if (m_progressDialog == null)
+			{
+				m_progressDialog = new ProgressDialog(host);
+				m_progressDialog.setMessage(getString(R.string.message_computing));
+				m_progressDialog.setIndeterminate(true);
+				m_progressDialog.setCancelable(false);
+				m_progressDialog.show();
+			}
 
-				}
-				catch (Exception e)
-				{
-					Log.e(TAG, "Loading of alarm stats failed");
-					m_listViewAdapter = null;
-				}
-		    	//StatsActivity.this.setListAdapter(m_listViewAdapter);
-		        // getStatList();
-		        return m_listViewAdapter;
-		    }
-			
-			@Override
-			protected void onPostExecute(ServicesAdapter o)
-		    {
-				super.onPostExecute(o);
-		        // update hourglass
-		    	if (m_progressDialog != null)
-		    	{
-		    		m_progressDialog.hide();
-		    		m_progressDialog = null;
-		    	}
-		    	setListAdapter(o);
-		    }
-		    @Override
-		    protected void onPreExecute()
-		    {
-		        // update hourglass
-		    	// @todo this code is only there because onItemSelected is called twice
-		    	if (m_progressDialog == null)
-		    	{
-			    	m_progressDialog = new ProgressDialog(getActivity());
-			    	m_progressDialog.setMessage(getString(R.string.message_computing));
-			    	m_progressDialog.setIndeterminate(true);
-			    	m_progressDialog.setCancelable(false);
-			    	m_progressDialog.show();
-		    	}
-		    }
+			BackgroundTask.run(host,
+					() -> StatsProvider.getInstance().getReceiverListForPackage(host, packageName),
+					(receivers, error) ->
+					{
+						if (m_progressDialog != null)
+						{
+							m_progressDialog.dismiss();
+							m_progressDialog = null;
+						}
+
+						if (error != null || receivers == null)
+						{
+							Log.e(TAG, "Loading of the receiver list failed");
+							return;
+						}
+
+						m_listViewAdapter = new ServicesAdapter(host, receivers);
+						setListAdapter(m_listViewAdapter);
+					});
 		}		
 	}
 }

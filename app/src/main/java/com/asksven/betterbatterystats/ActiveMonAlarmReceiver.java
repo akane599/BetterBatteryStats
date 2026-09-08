@@ -21,11 +21,11 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.preference.PreferenceManager;
+import androidx.preference.PreferenceManager;
 import android.util.Log;
 
 import com.asksven.betterbatterystats.data.StatsProvider;
-import com.asksven.betterbatterystats.services.WriteTimerReferenceService;
+import com.asksven.betterbatterystats.services.ReferenceWorker;
 
 /**
  * Handles alarms to turn off Wifi is a connection could not be established
@@ -54,8 +54,7 @@ public class ActiveMonAlarmReceiver extends BroadcastReceiver
 				StatsProvider.scheduleActiveMonAlarm(context);
 				
 				// write the reference
-				Intent serviceIntent = new Intent(context, WriteTimerReferenceService.class);
-				context.startService(serviceIntent);				
+				ReferenceWorker.enqueue(context, ReferenceWorker.Kind.TIMER);
 			}
 			else
 			{

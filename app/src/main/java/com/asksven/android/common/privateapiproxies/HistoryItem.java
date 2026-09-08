@@ -17,8 +17,6 @@ package com.asksven.android.common.privateapiproxies;
 
 import java.io.Serializable;
 
-import android.os.Parcel;
-import android.os.Parcelable;
 
 import com.asksven.android.common.utils.DateUtils;
 
@@ -27,7 +25,7 @@ import com.asksven.android.common.utils.DateUtils;
  * @author sven
  *
  */
-public class HistoryItem implements Serializable, Parcelable
+public class HistoryItem implements Serializable
 {
     static final long serialVersionUID = 1L;
     private static final byte CMD_NULL = 0;
@@ -419,35 +417,6 @@ public class HistoryItem implements Serializable, Parcelable
 		m_offset = offset;
 	}
 
-	/* (non-Javadoc)
-	 * @see android.os.Parcelable#describeContents()
-	 */
-	@Override
-	public int describeContents()
-	{
-		// TODO Auto-generated method stub
-		return 0;
-	}
-
-	/* (non-Javadoc)
-	 * @see android.os.Parcelable#writeToParcel(android.os.Parcel, int)
-	 */
-	@Override
-	public void writeToParcel(Parcel dest, int flags)
-	{
-		// TODO Auto-generated method stub
-	    dest.writeLong(m_time);
-	    dest.writeLong(m_offset);
-	    dest.writeByte(m_cmd);
-	    dest.writeByte(m_batteryLevel);
-	    dest.writeByte(m_batteryStatusValue);
-	    dest.writeByte(m_batteryHealthValue);
-	    dest.writeByte(m_batteryPlugTypeValue);
-	    dest.writeString(m_batteryTemperatureValue);
-	    dest.writeString(m_batteryVoltageValue);
-	    dest.writeInt(m_statesValue);
-	}
-	
 	public static final class  BitDescription
 	{
 		public final int mask;

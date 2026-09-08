@@ -16,7 +16,6 @@ package com.asksven.android.common.privateapiproxies;
  */
 
 
-import android.os.Parcelable;
 
 import java.io.Serializable;
 
@@ -25,7 +24,7 @@ import java.io.Serializable;
  * @author sven
  *
  */
-public class HistoryItemAndroid11 extends HistoryItem implements Serializable, Parcelable
+public class HistoryItemAndroid11 extends HistoryItem implements Serializable
 {
 
     public static final byte CMD_UPDATE = 0;        // These can be written as deltas
