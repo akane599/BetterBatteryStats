@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/modern_root" android:layout_width="match_parent" android:layout_height="match_parent"
+    android:orientation="vertical" android:background="?android:attr/colorBackground">
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/modern_toolbar" android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize" />
+    <Spinner android:id="@+id/modern_category" android:layout_width="match_parent"
+        android:layout_height="wrap_content" android:minHeight="48dp"
+        android:layout_marginHorizontal="16dp" android:contentDescription="@string/modern_category" />
+    <androidx.recyclerview.widget.RecyclerView android:id="@+id/modern_list"
+        android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1"
+        android:clipToPadding="false" android:paddingBottom="24dp" />
+</LinearLayout>

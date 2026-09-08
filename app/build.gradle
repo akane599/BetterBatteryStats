@@ -21,10 +21,11 @@ android {
 
     defaultConfig {
         applicationId "com.asksven.betterbatterystats"
+        resValue "string", "app_display_name", "BBS"
         minSdk libs.versions.minSdk.get() as int
         targetSdk libs.versions.targetSdk.get() as int
-        versionCode 109
-        versionName "3.5.0"
+        versionCode 110
+        versionName "4.0.0-alpha01"
         versionNameSuffix = getBuildSuffix()
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
         testBuildType "debug"
@@ -92,6 +93,8 @@ android {
             }
         }
         debug {
+            applicationIdSuffix ".modern"
+            resValue "string", "app_display_name", "BBS Modern"
             minifyEnabled false
             debuggable true
             if (signingConfigs.debug.storeFile != null) {
@@ -109,6 +112,7 @@ android {
 
     buildFeatures {
         buildConfig true
+        aidl true
     }
 
     packaging {
@@ -167,6 +171,7 @@ def verifyPersistedModelNotObfuscated = tasks.register('verifyPersistedModelNotO
                 'com.asksven.android.common.privateapiproxies.StatElement',
                 'com.asksven.betterbatterystats.data.Reference',
                 'com.asksven.betterbatterystats.data.ReferenceDto',
+                'com.asksven.betterbatterystats.modern.SnapshotStore$Record',
         ]
         // Same package or prefix, but runtime-only: never written to disk, safe to rename.
         def runtimeOnly = [
@@ -229,6 +234,10 @@ dependencies {
     implementation libs.androidx.core
     implementation libs.androidx.fragment
     implementation libs.androidx.lifecycle.runtime
+    implementation libs.androidx.lifecycle.viewmodel
+    implementation libs.androidx.lifecycle.livedata
+    implementation libs.shizuku.api
+    implementation libs.shizuku.provider
     implementation libs.androidx.multidex
     implementation libs.androidx.preference
     implementation libs.androidx.recyclerview
@@ -249,6 +258,8 @@ dependencies {
     androidTestImplementation libs.androidx.test.junit
     androidTestImplementation libs.androidx.test.rules
     androidTestImplementation libs.espresso.core
+    androidTestImplementation libs.androidx.test.core
+    androidTestImplementation libs.androidx.test.runner
 }
 
 def getBuildSuffix() {

@@ -155,9 +155,13 @@ public class StatsActivity extends ActionBarListActivity
 
 		super.onCreate(savedInstanceState);
 
-		requestNotificationPermissionIfNeeded();
-
-		setContentView(R.layout.stats);
+		if (Build.VERSION.SDK_INT >= 34) {
+            startActivity(new Intent(this, com.asksven.betterbatterystats.modern.ModernStatsActivity.class));
+            finish();
+            return;
+        }
+        requestNotificationPermissionIfNeeded();
+        setContentView(R.layout.stats);
 		
 		Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
 		toolbar.setTitle(getString(R.string.app_name));
@@ -436,6 +440,7 @@ public class StatsActivity extends ActionBarListActivity
 	protected void onResume()
 	{
 		super.onResume();
+        if (Build.VERSION.SDK_INT >= 34) return;
 		Log.i(TAG, "OnResume called");
 
 
@@ -539,6 +544,7 @@ public class StatsActivity extends ActionBarListActivity
 	protected void onPause()
 	{
 		super.onPause();
+        if (Build.VERSION.SDK_INT >= 34) return;
 
 		// unregister boradcast receiver for saved references
 		this.unregisterReceiver(this.m_referenceSavedReceiver);

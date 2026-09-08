@@ -36,7 +36,7 @@
     <!-- retrieve ps list (running tasks) -->
     <uses-permission android:name="android.permission.GET_TASKS" />
     <!-- tentative to fix bug #173 -->
-    <uses-permission android:name="android.permission.BLUETOOTH" />
+    <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
     <!-- need to hold wakelocks for writing operations -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <!-- needed starting with SDK 28 -->
@@ -83,11 +83,21 @@
         android:allowBackup="true"
         android:fullBackupContent="@xml/backup_rules"
         android:icon="@mipmap/ic_launcher"
-        android:label="BBS"
+        android:label="@string/app_display_name"
         android:supportsRtl="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:enableOnBackInvokedCallback="true"
         android:theme="@style/Theme.Bbs.Auto">
+
+        <provider
+            android:name="rikka.shizuku.ShizukuProvider"
+            android:authorities="${applicationId}.shizuku"
+            android:multiprocess="false"
+            android:enabled="true"
+            android:exported="true"
+            android:permission="android.permission.INTERACT_ACROSS_USERS_FULL" />
+
+        <activity android:name=".modern.ModernStatsActivity" android:exported="false" />
 
         <provider
             android:name="androidx.core.content.FileProvider"
@@ -102,7 +112,7 @@
         <activity
             android:name=".StatsActivity"
             android:configChanges="orientation|screenSize"
-            android:label="BetterBatteryStats"
+            android:label="@string/app_display_name"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -134,7 +144,7 @@
         <activity
             android:name=".ImportExportPreferencesActivity"
             android:configChanges="orientation|screenSize"
-            android:exported="true">
+            android:exported="false">
             <intent-filter>
                 <action android:name="com.asksven.betterbatterystats.ImportExportPreferencesActivity" />
 
@@ -143,7 +153,7 @@
         </activity>
         <activity
             android:name=".SystemAppActivity"
-            android:exported="true">
+            android:exported="false">
             <intent-filter>
                 <action android:name="com.asksven.betterbatterystats.SystemAppActivity" />
 
@@ -152,7 +162,7 @@
         </activity>
         <activity
             android:name=".DiagnosticsActivity"
-            android:exported="true">
+            android:exported="false">
             <intent-filter>
                 <action android:name="com.asksven.betterbatterystats.DiagnosticsActivity" />
 
@@ -287,7 +297,7 @@
         <service
             android:name=".services.BbsDashClockExtension"
             android:icon="@drawable/ic_stat_notification"
-            android:label="BetterBatteryStats"
+            android:label="@string/app_display_name"
             android:permission="com.google.android.apps.dashclock.permission.READ_EXTENSION_DATA"
             android:exported="true">
             <intent-filter>

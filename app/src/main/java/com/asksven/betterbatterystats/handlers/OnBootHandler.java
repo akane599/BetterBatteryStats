@@ -45,6 +45,15 @@ public class OnBootHandler extends BroadcastReceiver
 	@Override
 	public void onReceive(Context context, Intent intent)
 	{
+        if (intent == null || !Intent.ACTION_BOOT_COMPLETED.equals(intent.getAction())) return;
+        if (android.os.Build.VERSION.SDK_INT >= 34) {
+            // The modern backend is on-demand. Never start a legacy foreground service at boot.
+            com.asksven.betterbatterystats.modern.SnapshotStore store = new com.asksven.betterbatterystats.modern.SnapshotStore(context);
+            store.delete("latest");
+            store.delete("baseline");
+            com.asksven.betterbatterystats.modern.ModernWidget.updateAll(context, null);
+            return;
+        }
 		SharedPreferences sharedPrefs = PreferenceManager.getDefaultSharedPreferences(context);
 
 		Log.i(TAG, "Received Broadcast " + intent.getAction());

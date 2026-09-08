@@ -66,6 +66,7 @@ public class WidgetUpdateWorker extends Worker
     /** Installs (or keeps) the periodic widget refresh. */
     public static void schedulePeriodicRefresh(Context context)
     {
+        if (android.os.Build.VERSION.SDK_INT >= 34) return;
         if (context == null)
         {
             return;
@@ -94,6 +95,7 @@ public class WidgetUpdateWorker extends Worker
     /** Refreshes the widgets as soon as the system allows. */
     public static void refreshNow(Context context)
     {
+        if (android.os.Build.VERSION.SDK_INT >= 34) return;
         if (context == null)
         {
             return;
@@ -111,6 +113,7 @@ public class WidgetUpdateWorker extends Worker
     @Override
     public Result doWork()
     {
+        if (android.os.Build.VERSION.SDK_INT >= 34) return Result.success();
         Context context = getApplicationContext();
         AppWidgetManager manager = AppWidgetManager.getInstance(context);
 

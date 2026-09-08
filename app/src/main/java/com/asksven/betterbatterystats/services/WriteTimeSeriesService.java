@@ -47,6 +47,7 @@ public class WriteTimeSeriesService extends JobService
 	@Override
 	public boolean onStartJob(JobParameters params)
 	{
+        if (android.os.Build.VERSION.SDK_INT >= 34) return false;
 		Log.i(TAG, "Called at " + DateUtils.now());
 
         SharedPreferences sharedPrefs = PreferenceManager.getDefaultSharedPreferences(this);

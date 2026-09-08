@@ -51,6 +51,7 @@ public class CreditsAdapter extends ArrayAdapter<String>
 
 
         // libs
+        credits.add(new Credit("Shizuku API", "RikkaApps", "MIT"));
         credits.add(new Credit("libsuperuser", "Chainfire", "Apache 2.0"));
         credits.add(new Credit("Android Common", "asksven", "Apache 2.0"));
         credits.add(new Credit("Google gson", "", "Apache 2.0"));

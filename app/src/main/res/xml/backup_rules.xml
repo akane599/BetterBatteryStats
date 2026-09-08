@@ -12,4 +12,5 @@
     <include
         domain="sharedpref"
         path="." />
+    <exclude domain="sharedpref" path="modern-widget.xml" />
 </full-backup-content>

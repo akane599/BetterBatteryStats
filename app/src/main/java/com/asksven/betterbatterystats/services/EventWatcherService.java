@@ -91,6 +91,7 @@ public class EventWatcherService extends Service
 	 */
 	public static void start(Context context)
 	{
+        if (Build.VERSION.SDK_INT >= 34) return;
 		if (context == null || sRunning)
 		{
 			return;
@@ -122,6 +123,7 @@ public class EventWatcherService extends Service
 	public void onCreate()
 	{
 		super.onCreate();
+        if (Build.VERSION.SDK_INT >= 34) { stopSelf(); return; }
 
 		createNotificationChannel();
 
@@ -230,6 +232,7 @@ public class EventWatcherService extends Service
 	@Override
 	public int onStartCommand(Intent intent, int flags, int startId)
 	{
+        if (Build.VERSION.SDK_INT >= 34) { stopSelf(); return START_NOT_STICKY; }
 		Log.i(TAG, "Received start id " + startId + ": " + intent);
 
 		// We want this service to continue running until it is explicitly stopped, so return sticky.

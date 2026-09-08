@@ -4,7 +4,7 @@ agp = "8.13.2"
 playPublisher = "3.9.1"
 compileSdk = "36"
 targetSdk = "36"
-minSdk = "23"
+minSdk = "24"
 
 # AndroidX
 activity = "1.12.4"
@@ -20,6 +20,7 @@ vectordrawable = "1.2.0"
 work = "2.10.5"
 
 # Third party
+shizuku = "13.1.5"
 gson = "2.11.0"
 jackson = "1.9.13"
 material = "1.13.0"
@@ -34,6 +35,13 @@ androidxTestRules = "1.6.1"
 espresso = "3.6.1"
 
 [libraries]
+shizuku-api = { module = "dev.rikka.shizuku:api", version.ref = "shizuku" }
+shizuku-provider = { module = "dev.rikka.shizuku:provider", version.ref = "shizuku" }
+androidx-lifecycle-viewmodel = { module = "androidx.lifecycle:lifecycle-viewmodel", version.ref = "lifecycle" }
+androidx-lifecycle-livedata = { module = "androidx.lifecycle:lifecycle-livedata", version.ref = "lifecycle" }
+androidx-test-core = { module = "androidx.test:core", version = "1.6.1" }
+androidx-test-runner = { module = "androidx.test:runner", version = "1.6.2" }
+
 androidx-activity = { module = "androidx.activity:activity", version.ref = "activity" }
 androidx-appcompat = { module = "androidx.appcompat:appcompat", version.ref = "appcompat" }
 androidx-core = { module = "androidx.core:core", version.ref = "core" }

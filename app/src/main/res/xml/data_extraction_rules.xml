@@ -15,10 +15,12 @@
         <include
             domain="sharedpref"
             path="." />
+        <exclude domain="sharedpref" path="modern-widget.xml" />
     </cloud-backup>
     <device-transfer>
         <include
             domain="sharedpref"
             path="." />
+        <exclude domain="sharedpref" path="modern-widget.xml" />
     </device-transfer>
 </data-extraction-rules>

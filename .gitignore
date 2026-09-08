@@ -18,3 +18,7 @@ secret-env-plain
 # Android build outputs
 /app/build
 build/
+
+**/build/
+*.keystore
+*.jks

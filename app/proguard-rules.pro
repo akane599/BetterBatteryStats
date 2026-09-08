@@ -71,3 +71,6 @@
 # Keep the line numbers of crashes mappable.
 -keepattributes SourceFile,LineNumberTable
 -renamesourcefileattribute SourceFile
+
+# Gson JSON keys must stay stable across modern snapshot updates.
+-keep class com.asksven.betterbatterystats.modern.SnapshotStore$Record { *; }

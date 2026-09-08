@@ -80,6 +80,7 @@ public class ReferenceWorker extends Worker
      */
     public static void enqueue(Context context, Kind kind)
     {
+        if (android.os.Build.VERSION.SDK_INT >= 34) return;
         if (context == null || kind == null)
         {
             return;
@@ -100,6 +101,7 @@ public class ReferenceWorker extends Worker
     @Override
     public Result doWork()
     {
+        if (android.os.Build.VERSION.SDK_INT >= 34) return Result.success();
         String rawKind = getInputData().getString(KEY_KIND);
         Kind kind;
         try

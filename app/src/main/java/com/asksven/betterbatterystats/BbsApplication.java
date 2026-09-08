@@ -67,6 +67,13 @@ public class BbsApplication extends MultiDexApplication
         super.onCreate();
 
         BbsApplication.context = getApplicationContext();
+        if (android.os.Build.VERSION.SDK_INT >= 34) {
+            // Retire jobs left by an upgrade from the private-API backend.
+            android.app.job.JobScheduler jobs = (android.app.job.JobScheduler) getSystemService(JOB_SCHEDULER_SERVICE);
+            if (jobs != null) jobs.cancelAll();
+            androidx.work.WorkManager.getInstance(this).cancelAllWork();
+            stopService(new android.content.Intent(this, com.asksven.betterbatterystats.services.EventWatcherService.class));
+        }
 
         SharedPreferences settings = PreferenceManager.getDefaultSharedPreferences(this);
         boolean forceEN = settings.getBoolean("force_en", false);
