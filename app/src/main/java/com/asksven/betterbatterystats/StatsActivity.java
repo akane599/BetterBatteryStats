@@ -20,6 +20,7 @@ package com.asksven.betterbatterystats;
 
  */
 
+import android.Manifest;
 import android.app.AlertDialog;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -28,12 +29,15 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.pm.PackageInfo;
+import android.content.pm.PackageManager;
 import android.net.Uri;
-import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
 import com.google.android.material.snackbar.Snackbar;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.core.content.ContextCompat;
 import androidx.core.content.FileProvider;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 import androidx.appcompat.widget.Toolbar;
@@ -69,6 +73,7 @@ import com.asksven.betterbatterystats.data.Reference;
 import com.asksven.betterbatterystats.data.ReferenceStore;
 import com.asksven.betterbatterystats.data.StatsProvider;
 import com.asksven.betterbatterystats.features.FeatureFlags;
+import com.asksven.betterbatterystats.util.BackgroundTask;
 import com.asksven.betterbatterystats.handlers.OnBootHandler;
 import com.asksven.betterbatterystats.services.EventWatcherService;
 import com.asksven.betterbatterystats.services.ReferenceWorker;
@@ -128,13 +133,29 @@ public class StatsActivity extends ActionBarListActivity
 	private BroadcastReceiver m_referenceSavedReceiver = null;
 
 	private SwipeRefreshLayout swipeLayout = null;
-	
+
+	/**
+	 * Android 13 turned notifications into a runtime permission. POST_NOTIFICATIONS was declared in
+	 * the manifest but never requested, so on 13 and later the foreground service ran with its
+	 * notification silently suppressed — leaving no sign the app was collecting anything.
+	 */
+	private final ActivityResultLauncher<String> m_notificationPermissionLauncher =
+			registerForActivityResult(new ActivityResultContracts.RequestPermission(), granted ->
+			{
+				if (!granted)
+				{
+					Log.i(TAG, "POST_NOTIFICATIONS was denied; the collector runs without a notification");
+				}
+			});
+
 	@Override
 	protected void onCreate(Bundle savedInstanceState)
 	{
 		SharedPreferences sharedPrefs = PreferenceManager.getDefaultSharedPreferences(this);
 
 		super.onCreate(savedInstanceState);
+
+		requestNotificationPermissionIfNeeded();
 
 		setContentView(R.layout.stats);
 		
@@ -645,6 +666,24 @@ public class StatsActivity extends ActionBarListActivity
     
 
 	/**
+	 * Asks for POST_NOTIFICATIONS once on Android 13 and later. The permission is not essential —
+	 * collection works without it — so a denial is not re-prompted here.
+	 */
+	private void requestNotificationPermissionIfNeeded()
+	{
+		if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU)
+		{
+			return;
+		}
+
+		if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
+				!= PackageManager.PERMISSION_GRANTED)
+		{
+			m_notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS);
+		}
+	}
+
+	/**
 	 * Take the change of selection from the spinners into account and refresh the ListView
 	 * with the right data
 	 */
@@ -880,157 +919,121 @@ public class StatsActivity extends ActionBarListActivity
 //        Debug.startMethodTracing(
 //                "doRefreshTrace-" + logDate);
 
-		new LoadStatData().execute(updateCurrent);
+		loadStats(updateCurrent);
 
 		// Debug only
 //		Debug.stopMethodTracing();
 	}
 
-	// @see http://code.google.com/p/makemachine/source/browse/trunk/android/examples/async_task/src/makemachine/android/examples/async/AsyncTaskExample.java
-	// for more details
-	private class LoadStatData extends AsyncTask<Boolean, Integer, StatsAdapter>
+	/**
+	 * Loads the selected stat off the main thread and binds it to the list.
+	 *
+	 * <p>Only the read runs in the background. The adapter used to be built there too, holding the
+	 * Activity from a non-static inner AsyncTask — so a rotation during a refresh leaked the screen
+	 * and then delivered its result to the dead one.</p>
+	 */
+	private void loadStats(final boolean updateCurrent)
 	{
-		private Exception m_exception = null;
-		@Override
-	    protected StatsAdapter doInBackground(Boolean... refresh)
-	    {
-			if (LogSettings.DEBUG) Log.i(TAG, "LoadStatData: was called with refresh=" + refresh[0]);
-			// do we need to refresh current
-			if (refresh[0])
-			{
-				// make sure to create a valid "current" stat
-				StatsProvider.getInstance().setCurrentReference(m_iSorting);
-			}
-			//super.doInBackground(params);
-			m_listViewAdapter = null;
-			try
-			{
-				if (LogSettings.DEBUG) Log.i(TAG, "LoadStatData: refreshing display for stats " + m_refFromName + " to " + m_refToName);
-				m_listViewAdapter = new StatsAdapter(
-						StatsActivity.this,
-						StatsProvider.getInstance().getStatList(m_iStat, m_refFromName, m_iSorting, m_refToName),
-						StatsActivity.this);
-			}
-			catch (BatteryInfoUnavailableException e)
-			{
-				//Log.e(TAG, e.getMessage(), e.fillInStackTrace());
-				Log.e(TAG, "Exception: "+Log.getStackTraceString(e));
-				m_exception = e;
+		swipeLayout.setRefreshing(true);
 
-			}
-			catch (Exception e)
-			{
-				//Log.e(TAG, e.getMessage(), e.fillInStackTrace());
-				Log.e(TAG, "Exception: "+Log.getStackTraceString(e));
-				m_exception = e;
+		final int stat = m_iStat;
+		final int sorting = m_iSorting;
+		final String refFromName = m_refFromName;
+		final String refToName = m_refToName;
 
-			}
-
-	    	//StatsActivity.this.setListAdapter(m_listViewAdapter);
-	        // getStatList();
-	        return m_listViewAdapter;
-	    }
-		
-//		@Override
-		protected void onPostExecute(StatsAdapter o)
-	    {
-            swipeLayout.setRefreshing(false);
-
-	    	if (m_exception != null)
-	    	{
-	    		if (m_exception instanceof BatteryInfoUnavailableException)
-	    		{
-	    			Snackbar
-		  			  .make(findViewById(android.R.id.content), R.string.info_service_connection_error, Snackbar.LENGTH_LONG)
-		  			  .show();
-
-	    		}
-	    		else
-	    		{
-	    			Snackbar
-		  			  .make(findViewById(android.R.id.content), R.string.info_unknown_stat_error, Snackbar.LENGTH_LONG)
-		  			  .show();
-
-	    		}
-	    	}
-
-	        TextView tvSince = (TextView) findViewById(R.id.TextViewSince);
-    		Reference myReferenceFrom 	= ReferenceStore.getReferenceByName(m_refFromName, StatsActivity.this);
-    		Reference myReferenceTo	 	= ReferenceStore.getReferenceByName(m_refToName, StatsActivity.this);
-
-            SharedPreferences sharedPrefs = PreferenceManager.getDefaultSharedPreferences(StatsActivity.this);
-
-            if (FeatureFlags.getInstance(StatsActivity.this).isTimeSeriesEnabled())
-            {
-                // schedule time series upload
-                WriteTimeSeriesService.scheduleJob(StatsActivity.this);
-            }
-
-            long sinceMs = StatsProvider.getInstance().getSince(myReferenceFrom, myReferenceTo);
-        	if (o != null)
-        	{
-        		o.setTotalTime(sinceMs);
-        	}
-        	
-	        if (sinceMs != -1)
-	        {
-		        String sinceText = DateUtils.formatDuration(sinceMs);
-		        
-				sinceText += " " + StatsProvider.getInstance().getBatteryLevelFromTo(myReferenceFrom, myReferenceTo, !sharedPrefs.getBoolean("show_bat_details", false));
-		        
-		        tvSince.setText(sinceText);
-		        if (LogSettings.DEBUG) Log.i(TAG, "Since " + sinceText);
-	        }
-	        else
-	        {
-		        tvSince.setText("n/a");
-		        if (LogSettings.DEBUG) Log.i(TAG, "Since: n/a ");
-	        	
-	        }
-			LinearLayout notificationPanel = (LinearLayout) findViewById(R.id.Notification);
-			ListView listView = (ListView) findViewById(android.R.id.list);
-			
-			List<StatElement> myStats;
-			try
-			{
-				myStats = o.getList();
-
-				if ((myStats != null) && (!myStats.isEmpty()))
+		BackgroundTask.run(this,
+				() ->
 				{
-					// check if notification
-					if (myStats.get(0) instanceof Notification)
+					if (updateCurrent)
 					{
-						// Show Panel
-						notificationPanel.setVisibility(View.VISIBLE);
-						// Hide list
-						listView.setVisibility(View.GONE);
-						
-						// set Text
-						TextView tvNotification = (TextView) findViewById(R.id.TextViewNotification);
-						tvNotification.setText(myStats.get(0).getName());
+						// make sure to create a valid "current" stat
+						StatsProvider.getInstance().setCurrentReference(sorting);
 					}
-					else
-					{
-						// hide Panel
-						notificationPanel.setVisibility(View.GONE);
-						// Show list
-						listView.setVisibility(View.VISIBLE);
-					}
-				}
-			}
-			catch (Exception e)
-			{
-				e.printStackTrace();
-			}
-	    	StatsActivity.this.setListAdapter(o);
-	    }
 
-	    protected void onPreExecute()
-	    {
-            swipeLayout.setRefreshing(true);
-	    }
+					if (LogSettings.DEBUG)
+					{
+						Log.i(TAG, "loadStats: refreshing display for stats " + refFromName + " to " + refToName);
+					}
+
+					return StatsProvider.getInstance().getStatList(stat, refFromName, sorting, refToName);
+				},
+				(stats, error) -> onStatsLoaded(stats, error));
 	}
-	
+
+	private void onStatsLoaded(List<StatElement> stats, Exception error)
+	{
+		swipeLayout.setRefreshing(false);
+
+		if (error != null)
+		{
+			int message = (error instanceof BatteryInfoUnavailableException)
+					? R.string.info_service_connection_error
+					: R.string.info_unknown_stat_error;
+
+			Snackbar.make(findViewById(android.R.id.content), message, Snackbar.LENGTH_LONG).show();
+		}
+
+		Reference myReferenceFrom = ReferenceStore.getReferenceByName(m_refFromName, this);
+		Reference myReferenceTo = ReferenceStore.getReferenceByName(m_refToName, this);
+
+		SharedPreferences sharedPrefs = PreferenceManager.getDefaultSharedPreferences(this);
+
+		if (FeatureFlags.getInstance(this).isTimeSeriesEnabled())
+		{
+			// schedule time series upload
+			WriteTimeSeriesService.scheduleJob(this);
+		}
+
+		long sinceMs = StatsProvider.getInstance().getSince(myReferenceFrom, myReferenceTo);
+
+		TextView tvSince = (TextView) findViewById(R.id.TextViewSince);
+		if (sinceMs != -1)
+		{
+			String sinceText = DateUtils.formatDuration(sinceMs) + " "
+					+ StatsProvider.getInstance().getBatteryLevelFromTo(myReferenceFrom, myReferenceTo,
+							!sharedPrefs.getBoolean("show_bat_details", false));
+
+			tvSince.setText(sinceText);
+			if (LogSettings.DEBUG) Log.i(TAG, "Since " + sinceText);
+		}
+		else
+		{
+			tvSince.setText(R.string.label_not_available);
+			if (LogSettings.DEBUG) Log.i(TAG, "Since: n/a ");
+		}
+
+		// A leading Notification is a message about the stats rather than a stat: it goes to the
+		// banner. Whatever follows it is real data and is still listed — previously any notification
+		// hid the list wholesale, which since Android 14 would have hidden the dumpsys-derived rows
+		// along with the explanation of why the rest is missing.
+		List<StatElement> rows = (stats != null) ? stats : new ArrayList<StatElement>();
+		String noticeText = null;
+
+		if (!rows.isEmpty() && rows.get(0) instanceof Notification)
+		{
+			noticeText = rows.get(0).getName();
+			rows = rows.subList(1, rows.size());
+		}
+
+		LinearLayout notificationPanel = (LinearLayout) findViewById(R.id.Notification);
+		ListView listView = (ListView) findViewById(android.R.id.list);
+
+		if (noticeText != null)
+		{
+			notificationPanel.setVisibility(View.VISIBLE);
+			((TextView) findViewById(R.id.TextViewNotification)).setText(noticeText);
+		}
+		else
+		{
+			notificationPanel.setVisibility(View.GONE);
+		}
+
+		listView.setVisibility(rows.isEmpty() ? View.GONE : View.VISIBLE);
+
+		m_listViewAdapter = new StatsAdapter(this, new ArrayList<StatElement>(rows), this);
+		m_listViewAdapter.setTotalTime(sinceMs);
+		setListAdapter(m_listViewAdapter);
+	}
 
 	public AlertDialog getShareDialog()
 	{

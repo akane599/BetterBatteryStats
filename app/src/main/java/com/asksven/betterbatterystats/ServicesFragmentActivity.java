@@ -15,8 +15,9 @@
  */
 package com.asksven.betterbatterystats;
 
+import android.app.Activity;
+
 import android.content.Context;
-import android.os.AsyncTask;
 import android.os.Bundle;
 import androidx.fragment.app.FragmentManager;
 import androidx.fragment.app.ListFragment;
@@ -24,6 +25,7 @@ import android.util.Log;
 
 import com.asksven.betterbatterystats.adapters.ServicesAdapter;
 import com.asksven.betterbatterystats.data.StatsProvider;
+import com.asksven.betterbatterystats.util.BackgroundTask;
 
 /**
  * Demonstration of the use of a CursorLoader to load and display contacts data
@@ -68,41 +70,33 @@ public class ServicesFragmentActivity extends BaseActivity
 			Bundle b = getActivity().getIntent().getExtras();
 			m_packageName = b.getString("package");
 
-			new LoadStatData().execute(getActivity());
+			loadServices();
 
 		}
 
 
-		// @see http://code.google.com/p/makemachine/source/browse/trunk/android/examples/async_task/src/makemachine/android/examples/async/AsyncTaskExample.java
-		// for more details
-		private class LoadStatData extends AsyncTask<Context, Integer, ServicesAdapter>
+		/**
+		 * Reads the package's services off the main thread. Only the query runs in the background:
+		 * the adapter is built on the main thread, where the Activity it binds to is safe to touch.
+		 */
+		private void loadServices()
 		{
-			@Override
-		    protected ServicesAdapter doInBackground(Context... params)
-		    {
+			final Activity host = getActivity();
+			final String packageName = m_packageName;
 
-				try
-				{
-					m_listViewAdapter = new ServicesAdapter(getActivity(),
-							StatsProvider.getInstance().getServiceListForPackage(getActivity(), m_packageName));
+			BackgroundTask.run(host,
+					() -> StatsProvider.getInstance().getServiceListForPackage(host, packageName),
+					(services, error) ->
+					{
+						if (error != null || services == null)
+						{
+							Log.e(TAG, "Loading of the service list failed");
+							return;
+						}
 
-				}
-				catch (Exception e)
-				{
-					Log.e(TAG, "Loading of alarm stats failed");
-					m_listViewAdapter = null;
-				}
-		    	//StatsActivity.this.setListAdapter(m_listViewAdapter);
-		        // getStatList();
-		        return m_listViewAdapter;
-		    }
-			
-			@Override
-			protected void onPostExecute(ServicesAdapter o)
-		    {
-				super.onPostExecute(o);
-		    	setListAdapter(o);
-		    }
+						m_listViewAdapter = new ServicesAdapter(host, services);
+						setListAdapter(m_listViewAdapter);
+					});
 		}
 	}
 }

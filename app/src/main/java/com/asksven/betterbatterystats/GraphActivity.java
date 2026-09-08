@@ -18,7 +18,6 @@ package com.asksven.betterbatterystats;
 import java.util.ArrayList;
 
 import android.app.ProgressDialog;
-import android.os.AsyncTask;
 import android.os.Bundle;
 import com.google.android.material.snackbar.Snackbar;
 import androidx.appcompat.widget.Toolbar;
@@ -26,10 +25,10 @@ import android.util.Log;
 
 import com.asksven.android.common.privateapiproxies.BatteryStatsProxy;
 import com.asksven.android.common.privateapiproxies.HistoryItem;
-import com.asksven.android.system.AndroidVersion;
 import com.asksven.betterbatterystats.adapters.GraphsAdapter;
 import com.asksven.betterbatterystats.data.GraphSerie;
 import com.asksven.betterbatterystats.data.GraphSeriesFactory;
+import com.asksven.betterbatterystats.util.BackgroundTask;
 import com.asksven.betterbatterystats.widgets.GraphableBarsPlot;
 
 public class GraphActivity extends ActionBarListActivity
@@ -61,7 +60,7 @@ public class GraphActivity extends ActionBarListActivity
 		setListAdapter(m_adapter);
 
 
-		new LoadSerieData().execute();
+		loadSeries();
 
 	}
 	/**
@@ -71,12 +70,6 @@ public class GraphActivity extends ActionBarListActivity
 	 */
 	protected ArrayList<HistoryItem> getHistList()
 	{
-		if (AndroidVersion.isFroyo())
-		{
-			Snackbar
-			  .make(findViewById(android.R.id.content), R.string.message_no_hist_froyo, Snackbar.LENGTH_LONG)
-			  .show();
-		}
 		ArrayList<HistoryItem> myRet = new ArrayList<HistoryItem>();
 
 		BatteryStatsProxy mStats = BatteryStatsProxy.getInstance(this);
@@ -92,84 +85,77 @@ public class GraphActivity extends ActionBarListActivity
 	}
 
 
-	// @see http://code.google.com/p/makemachine/source/browse/trunk/android/examples/async_task/src/makemachine/android/examples/async/AsyncTaskExample.java
-		// for more details
-		private class LoadSerieData extends AsyncTask<Void, Void, GraphSeriesFactory>
+	/**
+	 * Builds the graph series off the main thread.
+	 *
+	 * <p>Reading the battery history is slow, and the old AsyncTask handed its result straight to
+	 * {@code list.getValues(...)} — so a failed read (which is the normal outcome from Android 14
+	 * on) arrived as null and crashed the screen rather than reporting the failure.</p>
+	 */
+	private void loadSeries()
+	{
+		if (m_progressDialog == null)
 		{
-			@Override
-		    protected GraphSeriesFactory doInBackground(Void... params)
-		    {
-
-				//ArrayList<HistoryItem> list = null;
-				GraphSeriesFactory store = null;
-				try
-				{
-					Log.i(TAG, "LoadSerieData: refreshing series");
-					store = new GraphSeriesFactory(getHistList());
-				}
-				catch (Exception e)
-				{
-					Log.e(TAG, "Exception: "+Log.getStackTraceString(e));
-				}
-
-		        return store;
-		    }
-
-//			@Override
-			protected void onPostExecute(GraphSeriesFactory list)
-		    {
-//				super.onPostExecute(o);
-		        // update hourglass
-				try
-				{
-			    	if (m_progressDialog != null)
-			    	{
-			    		m_progressDialog.dismiss();
-			    		m_progressDialog = null;
-			    	}
-				}
-				catch (Exception e)
-				{
-					// nop
-				}
-				finally
-				{
-					m_progressDialog = null;
-				}
-
-
-		    	m_adapter.setSeries(list);
-		    	m_adapter.notifyDataSetChanged();
-		    	GraphSerie mySerie1 = new GraphSerie(
-		    			GraphActivity.this.getString(R.string.label_graph_battery),
-		    			list.getValues(GraphSeriesFactory.SERIE_CHARGE));
-
-
-				GraphableBarsPlot bars = (GraphableBarsPlot) GraphActivity.this.findViewById(R.id.Battery);
-				bars.setValues(mySerie1.getValues());
-
-		    }
-//		    @Override
-		    protected void onPreExecute()
-		    {
-		        // update hourglass
-		    	// @todo this code is only there because onItemSelected is called twice
-		    	if (m_progressDialog == null)
-		    	{
-		    		try
-		    		{
-				    	m_progressDialog = new ProgressDialog(GraphActivity.this);
-				    	m_progressDialog.setMessage(getString(R.string.message_computing));
-				    	m_progressDialog.setIndeterminate(true);
-				    	m_progressDialog.setCancelable(false);
-				    	m_progressDialog.show();
-		    		}
-		    		catch (Exception e)
-		    		{
-		    			m_progressDialog = null;
-		    		}
-		    	}
-		    }
+			try
+			{
+				m_progressDialog = new ProgressDialog(this);
+				m_progressDialog.setMessage(getString(R.string.message_computing));
+				m_progressDialog.setIndeterminate(true);
+				m_progressDialog.setCancelable(false);
+				m_progressDialog.show();
+			}
+			catch (Exception e)
+			{
+				m_progressDialog = null;
+			}
 		}
+
+		BackgroundTask.run(this,
+				() ->
+				{
+					Log.i(TAG, "loadSeries: refreshing series");
+					return new GraphSeriesFactory(getHistList());
+				},
+				(series, error) ->
+				{
+					dismissProgressDialog();
+
+					if (error != null || series == null)
+					{
+						Snackbar.make(findViewById(android.R.id.content),
+								R.string.info_unknown_stat_error, Snackbar.LENGTH_LONG).show();
+						return;
+					}
+
+					m_adapter.setSeries(series);
+					m_adapter.notifyDataSetChanged();
+
+					GraphSerie batterySerie = new GraphSerie(
+							getString(R.string.label_graph_battery),
+							series.getValues(GraphSeriesFactory.SERIE_CHARGE));
+
+					GraphableBarsPlot bars = (GraphableBarsPlot) findViewById(R.id.Battery);
+					bars.setValues(batterySerie.getValues());
+				});
+	}
+
+	private void dismissProgressDialog()
+	{
+		try
+		{
+			if (m_progressDialog != null)
+			{
+				m_progressDialog.dismiss();
+			}
+		}
+		catch (Exception e)
+		{
+			// the dialog's window may already be gone; nothing to do
+		}
+		finally
+		{
+			m_progressDialog = null;
+		}
+	}
 
 }
