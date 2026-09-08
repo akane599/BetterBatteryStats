@@ -65,7 +65,7 @@ class SlidingTabStrip extends LinearLayout {
         final float density = getResources().getDisplayMetrics().density;
 
         TypedValue outValue = new TypedValue();
-        context.getTheme().resolveAttribute(R.attr.colorAccent, outValue, true);
+        context.getTheme().resolveAttribute(androidx.appcompat.R.attr.colorAccent, outValue, true);
         final int themeForegroundColor =  outValue.data;
 
         mDefaultBottomBorderColor = setColorAlpha(themeForegroundColor,

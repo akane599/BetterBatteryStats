@@ -30,8 +30,8 @@ import com.asksven.android.common.privateapiproxies.BatteryStatsProxy;
 import com.asksven.betterbatterystats.localeplugin.Constants;
 import com.asksven.betterbatterystats.localeplugin.bundle.BundleScrubber;
 import com.asksven.betterbatterystats.localeplugin.bundle.PluginBundleManager;
-import com.asksven.betterbatterystats.services.WriteCustomReferenceService;
-import com.asksven.betterbatterystats.services.WriteDumpfileService;
+import com.asksven.betterbatterystats.services.DumpfileWorker;
+import com.asksven.betterbatterystats.services.ReferenceWorker;
 
 import java.util.Locale;
 
@@ -87,16 +87,13 @@ public final class FireReceiver extends BroadcastReceiver
             {
                 Log.d(TAG, "Preparing to save a dumpfile");
 
-                Intent serviceIntent = new Intent(context, WriteDumpfileService.class);
-                serviceIntent.putExtra(WriteDumpfileService.STAT_TYPE_FROM, refFrom);
-                context.startService(serviceIntent);
+                DumpfileWorker.enqueue(context, refFrom, null);
             }
 
             if (saveRef)
             {
                 Log.d(TAG, "Preparing to save a custom ref");
-                Intent serviceIntent = new Intent(context, WriteCustomReferenceService.class);
-                context.startService(serviceIntent);
+                ReferenceWorker.enqueue(context, ReferenceWorker.Kind.CUSTOM);
             }
 
 		}

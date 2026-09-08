@@ -1,30 +1,29 @@
-apply plugin: 'com.android.application'
-apply plugin: 'com.github.triplet.play'
-apply plugin: 'kotlin-android'
-//apply plugin: 'kotlin-android-extensions'
-//apply plugin: 'com.google.gms.google-services'
+plugins {
+    alias(libs.plugins.android.application)
+}
 
-android {
-    compileSdkVersion 33
-
-//    playAccountConfigs {
-//        defaultAccountConfig {
-//            jsonFile = file('sa-google-play.json')
-//        }
-//    }
-
+// The Play Publisher plugin needs a service-account credentials file that is only present on CI.
+// Applying it unconditionally breaks local/offline builds, so it is opt-in.
+def playCredentials = file('sa-google-play.json')
+if (playCredentials.exists()) {
+    apply plugin: 'com.github.triplet.play'
     play {
         track = 'beta'
-        serviceAccountCredentials = file("sa-google-play.json")
+        serviceAccountCredentials = playCredentials
     }
+}
+
+android {
+    namespace 'com.asksven.betterbatterystats'
+    compileSdk libs.versions.compileSdk.get() as int
+    buildToolsVersion = '36.0.0'
 
     defaultConfig {
         applicationId "com.asksven.betterbatterystats"
-        minSdkVersion 19
-        //noinspection ExpiredTargetSdkVersion
-        targetSdk 33
-        versionCode 108
-        versionName "3.4.0"
+        minSdk libs.versions.minSdk.get() as int
+        targetSdk libs.versions.targetSdk.get() as int
+        versionCode 109
+        versionName "3.5.0"
         versionNameSuffix = getBuildSuffix()
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
         signingConfig signingConfigs.debug
@@ -41,22 +40,19 @@ android {
             keyPassword System.getenv("KEY_PASSWORD")
         }
         debug {
-            if(file(System.getenv("KEYSTORE_DEBUG") ?: "app.keystore").exists()) {
+            if (file(System.getenv("KEYSTORE_DEBUG") ?: "app.keystore").exists()) {
                 storeFile = file(System.getenv("KEYSTORE_DEBUG") ?: "app.keystore")
             }
         }
     }
 
     // we have different package name for the variants
-    flavorDimensions "edition"
+    flavorDimensions += "edition"
     productFlavors {
         gplay {
             dimension "edition"
             applicationId "com.asksven.betterbatterystats"
             signingConfig signingConfigs.release
-//            playAccountConfig = playAccountConfigs.defaultAccountConfig
-
-
         }
         xdaedition {
             dimension "edition"
@@ -65,40 +61,18 @@ android {
         }
     }
 
-    variantFilter { variant ->
-        def names = variant.flavors*.name
-        // To check for a certain build type, use variant.buildType.name == "<buildType>"
-        if (names.contains("gplay") && variant.buildType.name == "debug") {
-            // Gradle ignores any variants that satisfy the conditions above.
-            setIgnore(true)
+    androidComponents {
+        beforeVariants(selector().withFlavor("edition", "gplay").withBuildType("debug")) { variantBuilder ->
+            // The Play flavour is only ever shipped as a signed release build.
+            variantBuilder.enable = false
         }
-
-        // for xda edition we want to be able to build both debug and release version
-
     }
-    // and a naming policy for the apks
-    applicationVariants.all { variant ->
-        variant.outputs.all {
-            def project = "betterbatterystats"
-            def SEP = "_"
-            def flavor = variant.productFlavors[0].name
-            def buildType = variant.buildType.name
-            // update gradle // def buildType = variant.variantData.variantConfiguration.buildType.name
-            def version = variant.versionName
-
-            //def newApkName = project + SEP + flavor + SEP + buildType + SEP + version + ".apk"
-            def newApkName = project + SEP + flavor + SEP + buildType + SEP + version + ".apk"
-            outputFileName = newApkName
-        }
-
-    }
-
-
 
     buildTypes {
         release {
-            minifyEnabled false
-            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
             debuggable false
             signingConfig signingConfigs.release
         }
@@ -108,60 +82,85 @@ android {
             signingConfig signingConfigs.debug
         }
     }
-    packagingOptions {
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+        // Backport of java.time / streams APIs to the API 21 baseline.
+        coreLibraryDesugaringEnabled true
+    }
+
+    buildFeatures {
+        buildConfig true
+    }
+
+    packaging {
         resources {
-            excludes += ['META-INF/LICENSE', 'META-INF/ASL2.0']
+            excludes += ['META-INF/LICENSE', 'META-INF/ASL2.0', 'META-INF/DEPENDENCIES']
+        }
+        jniLibs {
+            // Android 15+ devices may use 16 KB memory pages; uncompressed libs page-align correctly.
+            useLegacyPackaging = false
         }
     }
+
     lint {
         abortOnError false
         disable 'MissingTranslation'
+        checkReleaseBuilds false
+    }
+
+    testOptions {
+        unitTests.returnDefaultValues = true
+    }
+}
+
+// and a naming policy for the apks
+androidComponents {
+    onVariants(selector().all()) { variant ->
+        variant.outputs.each { output ->
+            def flavor = variant.flavorName
+            def buildType = variant.buildType
+            output.outputFileName.set(
+                    output.versionName.map { v -> "betterbatterystats_${flavor}_${buildType}_${v}.apk" as String })
+        }
     }
 }
 
 dependencies {
-    implementation fileTree(include: ['*.jar'], dir: 'libs')
-    // for local tests (app/src/test)
-    // Required for instrumented tests (app/src/androidTest)
-    androidTestImplementation('androidx.test.espresso:espresso-core:3.1.0', {
-        exclude group: 'com.android.support', module: 'support-annotations'
-    })
+    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.5'
 
     implementation files('libs/RootTools-5.0.aar')
     implementation files('libs/RootShell-1.6.aar')
-    implementation 'androidx.appcompat:appcompat:1.6.1'
-    implementation 'de.cketti.library.changelog:ckchangelog:1.2.2'
-    implementation 'com.google.android.apps.dashclock:dashclock-api:2.0.0'
-    implementation 'com.google.code.gson:gson:2.8.9'
-    implementation 'org.codehaus.jackson:jackson-core-asl:1.9.13'
-    implementation 'org.codehaus.jackson:jackson-mapper-asl:1.9.13'
-    implementation 'com.google.android.material:material:1.9.0'
-    implementation 'androidx.vectordrawable:vectordrawable:1.1.0'
-    testImplementation 'junit:junit:4.13.2'
-    testImplementation 'org.powermock:powermock-api-mockito:1.6.5'
-    testImplementation 'org.powermock:powermock-module-junit4-rule-agent:1.6.5'
-    testImplementation 'org.powermock:powermock-module-junit4-rule:1.6.5'
-    testImplementation 'org.powermock:powermock-module-junit4:1.6.5'
-    androidTestImplementation 'androidx.test.ext:junit:1.1.5'
-    androidTestImplementation 'androidx.test:rules:1.5.0'
-    //implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.6.21"
-    implementation "androidx.swiperefreshlayout:swiperefreshlayout:1.1.0"
-    implementation "androidx.multidex:multidex:2.0.1"
 
-}
-repositories {
-    mavenCentral()
-    google()
-}
+    implementation libs.androidx.activity
+    implementation libs.androidx.appcompat
+    implementation libs.androidx.core
+    implementation libs.androidx.fragment
+    implementation libs.androidx.lifecycle.runtime
+    implementation libs.androidx.multidex
+    implementation libs.androidx.preference
+    implementation libs.androidx.recyclerview
+    implementation libs.androidx.swiperefreshlayout
+    implementation libs.androidx.vectordrawable
+    implementation libs.androidx.work.runtime
 
+    implementation libs.material
+    implementation libs.gson
+    implementation libs.jackson.core
+    implementation libs.jackson.mapper
+    implementation libs.ckchangelog
+    implementation libs.dashclock.api
+
+    testImplementation libs.junit
+    testImplementation libs.mockito.core
+
+    androidTestImplementation libs.androidx.test.junit
+    androidTestImplementation libs.androidx.test.rules
+    androidTestImplementation libs.espresso.core
+}
 
 def getBuildSuffix() {
-    def ret = ""
     def buildNumber = System.getenv("CIRCLE_BUILD_NUM")
-    if (buildNumber != null) {
-        ret = "-" + buildNumber
-    }
-
-    println ">>>>> Build number: \"" + ret + "\""
-    return ret
+    return buildNumber != null ? "-" + buildNumber : ""
 }

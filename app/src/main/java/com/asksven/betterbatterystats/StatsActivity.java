@@ -71,10 +71,9 @@ import com.asksven.betterbatterystats.data.StatsProvider;
 import com.asksven.betterbatterystats.features.FeatureFlags;
 import com.asksven.betterbatterystats.handlers.OnBootHandler;
 import com.asksven.betterbatterystats.services.EventWatcherService;
-import com.asksven.betterbatterystats.services.WriteCurrentReferenceService;
-import com.asksven.betterbatterystats.services.WriteCustomReferenceService;
+import com.asksven.betterbatterystats.services.ReferenceWorker;
+import com.asksven.betterbatterystats.services.WidgetUpdateWorker;
 import com.asksven.betterbatterystats.services.WriteTimeSeriesService;
-import com.asksven.betterbatterystats.services.WriteUnpluggedReferenceService;
 import com.asksven.betterbatterystats.widgetproviders.AppWidget;
 
 import java.io.File;
@@ -249,13 +248,9 @@ public class StatsActivity extends ActionBarListActivity
 				editor.putBoolean("launched", true);
 				editor.commit();
 
-				// start service to persist reference
-				Intent serviceIntent = new Intent(this, WriteUnpluggedReferenceService.class);
-				this.startService(serviceIntent);
-
-				// refresh widgets
-				Intent intentRefreshWidgets = new Intent(AppWidget.WIDGET_UPDATE);
-				this.sendBroadcast(intentRefreshWidgets);
+				// persist the "since unplugged" reference and refresh the widgets
+				ReferenceWorker.enqueue(this, ReferenceWorker.Kind.UNPLUGGED);
+				WidgetUpdateWorker.refreshNow(this);
 
 			}
 
@@ -473,28 +468,10 @@ public class StatsActivity extends ActionBarListActivity
 		}
 
 
-		if (!EventWatcherService.isServiceRunning(this))
-		{
-			Intent i = new Intent(this, EventWatcherService.class);
+		EventWatcherService.start(this);
 
-			if (Build.VERSION.SDK_INT >= 26)
-            {
-                this.startForegroundService(i);
-            }
-            else
-            {
-                this.startService(i);
-            }
-		}
-
-		// check if the widget refresh service is running and start it otherwise
-		if (Build.VERSION.SDK_INT >= 23)
-        {
-            if (!OnBootHandler.isAppWidgetsJobOn(this))
-            {
-                OnBootHandler.scheduleAppWidgetsJob(this);
-            }
-        }
+		// keep the widgets refreshed in the background
+		WidgetUpdateWorker.schedulePeriodicRefresh(this);
 
 		// make sure to create a valid "current" stat if none exists
 		// or if prefs re set to auto refresh
@@ -502,8 +479,7 @@ public class StatsActivity extends ActionBarListActivity
 
 		if ((bAutoRefresh) || (!ReferenceStore.hasReferenceByName(Reference.CURRENT_REF_FILENAME, this)))
 		{
-			Intent serviceIntent = new Intent(this, WriteCurrentReferenceService.class);
-			this.startService(serviceIntent);
+			ReferenceWorker.enqueue(this, ReferenceWorker.Kind.CURRENT);
 			doRefresh(true);
 
 		}
@@ -606,66 +582,66 @@ public class StatsActivity extends ActionBarListActivity
      * @see android.app.Activity#onOptionsItemSelected(android.view.MenuItem)
      */
     public boolean onOptionsItemSelected(MenuItem item)
-    {  
-        switch (item.getItemId())
+    {
+        // Resource ids are not compile-time constants any more (non-final R class), so this
+        // has to be an if/else chain rather than a switch.
+        final int itemId = item.getItemId();
+
+        if (itemId == R.id.preferences)
         {
-			case R.id.preferences:
-	        	Intent intentPrefs = null;
-	        	
-				intentPrefs = new Intent(this, PreferencesFragmentActivity.class);
-				intentPrefs.setPackage(SysUtils.getPackageName(this));
-	            this.startActivity(intentPrefs);
-	        	break;	
+            Intent intentPrefs = new Intent(this, PreferencesFragmentActivity.class);
+            intentPrefs.setPackage(SysUtils.getPackageName(this));
+            this.startActivity(intentPrefs);
+        }
+        else if (itemId == R.id.graph)
+        {
+            Intent intentGraph = new Intent(this, GraphActivity.class);
+            intentGraph.setPackage(SysUtils.getPackageName(this));
+            this.startActivity(intentGraph);
+        }
+        else if (itemId == R.id.rawstats)
+        {
+            Intent intentRaw = new Intent(this, RawStatsActivity.class);
+            intentRaw.setPackage(SysUtils.getPackageName(this));
+            this.startActivity(intentRaw);
+        }
+        else if (itemId == R.id.refresh)
+        {
+            doRefresh(true);
+        }
+        else if (itemId == R.id.custom_ref)
+        {
+            // Set custom reference: enqueue the write on the shared worker
+            ReferenceWorker.enqueue(this, ReferenceWorker.Kind.CUSTOM);
+        }
+        else if (itemId == R.id.test)
+        {
+            // save time-series if selected
+            WriteTimeSeriesService.scheduleJob(StatsActivity.this);
+        }
+        else if (itemId == R.id.about)
+        {
+            Intent intentAbout = new Intent(this, AboutActivity.class);
+            intentAbout.setPackage(SysUtils.getPackageName(this));
+            this.startActivity(intentAbout);
+        }
+        else if (itemId == R.id.help)
+        {
+            Intent i = new Intent(Intent.ACTION_VIEW);
+            i.setData(Uri.parse("https://better.asksven.io/betterbatterystats/help/"));
+            startActivity(i);
+        }
+        else if (itemId == R.id.share)
+        {
+            getShareDialog().show();
+        }
+        else
+        {
+            return super.onOptionsItemSelected(item);
+        }
 
-	        case R.id.graph:  
-	        	//Intent intentGraph = new Intent(this, BatteryGraphActivity.class);
-	        	Intent intentGraph = new Intent(this, GraphActivity.class);
-				intentGraph.setPackage(SysUtils.getPackageName(this));
-	            this.startActivity(intentGraph);
-	        	break;
-	        	
-	        case R.id.rawstats:  
-	        	Intent intentRaw = new Intent(this, RawStatsActivity.class);
-				intentRaw.setPackage(SysUtils.getPackageName(this));
-	            this.startActivity(intentRaw);
-	        	break;	
-	        case R.id.refresh:
-            	// Refresh
-//	        	ReferenceStore.rebuildCache(this);
-	        	doRefresh(true);
-            	break;	
-            case R.id.custom_ref:
-            	// Set custom reference
-
-            	// start service to persist reference
-        		Intent serviceIntent = new Intent(this, WriteCustomReferenceService.class);
-        		this.startService(serviceIntent);
-            	break;	            	
-            case R.id.test:
-                // save time-series if selected
-                WriteTimeSeriesService.scheduleJob(StatsActivity.this);
-    			break;
-
-            case R.id.about:
-            	// About
-            	Intent intentAbout = new Intent(this, AboutActivity.class);
-				intentAbout.setPackage(SysUtils.getPackageName(this));
-                this.startActivity(intentAbout);
-            	break;
-
-            case R.id.help:
-            	String url = "https://better.asksven.io/betterbatterystats/help/";
-            	Intent i = new Intent(Intent.ACTION_VIEW);
-            	i.setData(Uri.parse(url));
-            	startActivity(i);
-            	break;
-            case R.id.share:
-            	// Share
-            	getShareDialog().show();
-            	break;
-        }  
-        return false;  
-    }    
+        return true;
+    }
     
 
 	/**

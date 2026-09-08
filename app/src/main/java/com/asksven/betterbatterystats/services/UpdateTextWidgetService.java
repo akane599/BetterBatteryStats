@@ -25,7 +25,6 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.SystemClock;
 import android.preference.PreferenceManager;
-import androidx.core.app.JobIntentService;
 
 import android.util.Log;
 import android.widget.RemoteViews;
@@ -48,43 +47,36 @@ import java.util.ArrayList;
  * @author sven
  *
  */
-public class UpdateTextWidgetService extends JobIntentService
+public final class UpdateTextWidgetService
 {
 	private static final String TAG = "UpdateTWidgetService";
 	/** must be unique for each widget */
 	private static final int PI_CODE = 1;
 
-    static final int JOB_ID = 1001;
-
-    /**
-     * Convenience method for enqueuing work in to this service.
-     * see https://stackoverflow.com/questions/46445265/android-8-0-java-lang-illegalstateexception-not-allowed-to-start-service-inten
-     */
-    public static void enqueueWork(Context context, Intent work)
+    private UpdateTextWidgetService()
     {
-        enqueueWork(context, UpdateTextWidgetService.class, JOB_ID, work);
+        // static helpers only
     }
 
-    @Override
-    protected void onHandleWork(Intent intent)
+    /**
+     * Renders and pushes an update for the given widget ids.
+     *
+     * <p>Must be called off the main thread: reading the battery stats is slow. Callers go
+     * through {@link WidgetUpdateWorker}, which provides a background thread and a wakelock.</p>
+     */
+    public static void updateWidgets(Context context, int[] allWidgetIds)
     {
-        // We have received work to do.  The system or framework is already
-        // holding a wake lock for us at this point, so we can just go.
-        Log.i(TAG, "onHandleWork: " + intent);
+        Log.i(TAG, "updateWidgets: " + java.util.Arrays.toString(allWidgetIds));
         if (LogSettings.DEBUG)
         {
             Log.d(TAG, "Service started");
         }
-        AppWidgetManager appWidgetManager = AppWidgetManager.getInstance(this
-                .getApplicationContext());
-
-        int[] allWidgetIds = intent
-                .getIntArrayExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS);
+        AppWidgetManager appWidgetManager = AppWidgetManager.getInstance(context);
 
         StatsProvider stats = StatsProvider.getInstance();
 
         // make sure to flush cache
-        BatteryStatsProxy proxy = BatteryStatsProxy.getInstance(this);
+        BatteryStatsProxy proxy = BatteryStatsProxy.getInstance(context);
         if ( proxy != null)
         {
             proxy.invalidate();
@@ -102,8 +94,7 @@ public class UpdateTextWidgetService extends JobIntentService
             {
 
                 Log.i(TAG, "Update widget " + widgetId);
-                RemoteViews remoteViews = new RemoteViews(this
-                        .getApplicationContext().getPackageName(),
+                RemoteViews remoteViews = new RemoteViews(context.getPackageName(),
                         R.layout.widget);
 
                 final int cellSize = 40;
@@ -118,15 +109,15 @@ public class UpdateTextWidgetService extends JobIntentService
 
                     Log.i(TAG, "[" + widgetId + "] height=" + height + " (" + widgetOptions.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT) + ")");
                     Log.i(TAG, "[" + widgetId + "] width=" + width + "(" + widgetOptions.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH) + ")");
-                    remoteViews = new RemoteViews(this.getPackageName(), R.layout.widget_horz);
+                    remoteViews = new RemoteViews(context.getPackageName(), R.layout.widget_horz);
 
                     Log.i(TAG, "[" + widgetId + "] using horizontal layout");
-                    remoteViews = new RemoteViews(this.getPackageName(), R.layout.text_widget_horz);
+                    remoteViews = new RemoteViews(context.getPackageName(), R.layout.text_widget_horz);
                 }
 
 
                 // we change the bg color of the layout based on alpha from prefs
-                SharedPreferences sharedPrefs = PreferenceManager.getDefaultSharedPreferences(this);
+                SharedPreferences sharedPrefs = PreferenceManager.getDefaultSharedPreferences(context);
                 int opacity = sharedPrefs.getInt("new_widget_bg_opacity", 20);
                 opacity = (255 * opacity) / 100;
                 remoteViews.setInt(R.id.background, "setBackgroundColor", (opacity << 24) & android.graphics.Color.BLACK);
@@ -143,7 +134,7 @@ public class UpdateTextWidgetService extends JobIntentService
                 {
                     // retrieve stats
                     Reference currentRef = StatsProvider.getInstance().getUncachedPartialReference(0);
-                    Reference fromRef = ReferenceStore.getReferenceByName(refFrom, this);
+                    Reference fromRef = ReferenceStore.getReferenceByName(refFrom, context);
 
                     remoteViews.setTextViewText(R.id.stat_type, fromRef.getLabel());
 
@@ -153,7 +144,7 @@ public class UpdateTextWidgetService extends JobIntentService
                     {
                         // the desired stat type is unavailable, pick the alternate one and go on with that one
                         refFrom = sharedPrefs.getString("widget_fallback_stat_type", Reference.UNPLUGGED_REF_FILENAME);
-                        fromRef = ReferenceStore.getReferenceByName(refFrom, this);
+                        fromRef = ReferenceStore.getReferenceByName(refFrom, context);
                         otherStats = stats.getOtherUsageStatList(true, fromRef, false, true, currentRef);
                     }
 
@@ -237,12 +228,12 @@ public class UpdateTextWidgetService extends JobIntentService
                     }
 
                     boolean showColor = sharedPrefs.getBoolean("text_widget_color", true);
-                    UpdateWidgetService.setTextColor(remoteViews, showColor, this);
+                    UpdateWidgetService.setTextColor(remoteViews, showColor, context);
 
                     // tap zones
 
                     // Register an onClickListener for the graph -> refresh
-                    Intent clickIntentRefresh = new Intent(this.getApplicationContext(),
+                    Intent clickIntentRefresh = new Intent(context,
                             AppWidget.class);
 
                     clickIntentRefresh.setAction(AppWidgetManager.ACTION_APPWIDGET_UPDATE);
@@ -252,13 +243,13 @@ public class UpdateTextWidgetService extends JobIntentService
                     PendingIntent pendingIntentRefresh = null;
                     if (Build.VERSION.SDK_INT < 23) {
                         pendingIntentRefresh = PendingIntent.getBroadcast(
-                                getApplicationContext(), 0, clickIntentRefresh,
+                                context, 0, clickIntentRefresh,
                                 PendingIntent.FLAG_UPDATE_CURRENT);
                     }
                     else
                     {
                         pendingIntentRefresh = PendingIntent.getBroadcast(
-                                getApplicationContext(), 0, clickIntentRefresh,
+                                context, 0, clickIntentRefresh,
                                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
 
                     }
@@ -266,8 +257,8 @@ public class UpdateTextWidgetService extends JobIntentService
 
                     // Register an onClickListener for the widget -> call main activity
                     Intent i = new Intent(Intent.ACTION_MAIN);
-                    PackageManager manager = getPackageManager();
-                    i = manager.getLaunchIntentForPackage(getPackageName());
+                    PackageManager manager = context.getPackageManager();
+                    i = manager.getLaunchIntentForPackage(context.getPackageName());
                     i.addCategory(Intent.CATEGORY_LAUNCHER);
                     i.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                     int stat = Integer.valueOf(sharedPrefs.getString("widget_default_stat", "0"));
@@ -278,13 +269,13 @@ public class UpdateTextWidgetService extends JobIntentService
                     PendingIntent clickPI = null;
                     if (Build.VERSION.SDK_INT < 23) {
                         clickPI = PendingIntent.getActivity(
-                                this.getApplicationContext(), PI_CODE,
+                                context, PI_CODE,
                                 i, PendingIntent.FLAG_UPDATE_CURRENT);
                     }
                     else
                     {
                         clickPI = PendingIntent.getActivity(
-                                this.getApplicationContext(), PI_CODE,
+                                context, PI_CODE,
                                 i, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
                     }
                     remoteViews.setOnClickPendingIntent(R.id.imageView1, clickPI);
