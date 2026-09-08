@@ -25,12 +25,12 @@ import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.util.AttributeSet;
 import android.util.Log;
-import android.widget.ImageView;
+import androidx.appcompat.widget.AppCompatImageView;
 
 /**
  * @author sven
  */
-public class GraphableBarsTimeline extends ImageView
+public class GraphableBarsTimeline extends AppCompatImageView
 {
 	private static final String TAG = "GraphableBarsTimeline";
 	private Context m_context;

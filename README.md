@@ -1,6 +1,6 @@
 # BetterBatteryStats — Android 16 modernization
 
-An experimental modernization of this fork, based on commit `ccb0904` ("Updated to android 14, does not work yet"). The new dashboard uses Android's textual battery statistics rather than deserializing private `BatteryStatsImpl` parcels.
+An experimental modernization of this fork, based on commit `ccb0904` ("Updated to android 14, does not work yet"). The new dashboard uses Android's textual battery statistics rather than deserializing private `BatteryStatsImpl` parcels. It also integrates master at `83fdc6a`, including the toolchain catalog, WorkManager migration, serialization guards, theme and lint fixes merged while this work was underway.
 
 ## What works in the new dashboard
 
@@ -66,7 +66,7 @@ Install JDK 17, Android SDK platform 36, and build tools 36.0.0. Set `ANDROID_HO
 bash ./gradlew :app:assembleXdaeditionDebug :app:testXdaeditionDebugUnitTest :app:lintXdaeditionDebug
 ```
 
-The project uses AGP 8.11.1 and Gradle 8.13. Ordinary builds do not require Google Play credentials or signing secrets. The old Play publishing plugin is removed; this branch does not publish to a store.
+The project uses AGP 8.13.2 and Gradle 8.14.3, with versions in `gradle/libs.versions.toml`. Ordinary builds do not require Google Play credentials or signing secrets. The existing optional Play publishing configuration is retained and only applied when credentials are present. See [the preserved build and publishing notes](docs/LEGACY_BUILD.md). This GitHub workflow does not publish to a store.
 
 With an Android 16 emulator running:
 
@@ -75,7 +75,7 @@ bash ./gradlew :app:connectedXdaeditionDebugAndroidTest \
   -Pandroid.testInstrumentationRunnerArguments.class=com.asksven.betterbatterystats.modern.ModernStatsActivityTest
 ```
 
-CI builds the debug APK, runs JVM tests and lint, and runs the new dashboard's smoke tests on API 36. Legacy lint findings are still reported without failing the build; inspect the uploaded reports. Release signing continues to accept `KEYSTORE_RELEASE`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, and `KEY_PASSWORD`.
+CI builds the debug and minified release APKs, verifies persisted model names, runs JVM tests and lint, and runs the new dashboard's smoke tests on API 36. Legacy lint findings are still reported without failing the build; inspect the uploaded reports. Release signing continues to accept `KEYSTORE_RELEASE`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, and `KEY_PASSWORD`.
 
 ## License
 

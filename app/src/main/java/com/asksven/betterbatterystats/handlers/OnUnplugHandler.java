@@ -17,7 +17,7 @@
 package com.asksven.betterbatterystats.handlers;
 
 
-import com.asksven.betterbatterystats.services.WriteUnpluggedReferenceService;
+import com.asksven.betterbatterystats.services.ReferenceWorker;
 
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -43,8 +43,6 @@ public class OnUnplugHandler extends BroadcastReceiver
 	{
 		Log.i(TAG, "Received Broadcast " + intent.getAction() + ", serializing 'since unplugged'");
 		
-		// start service to persist reference
-		Intent serviceIntent = new Intent(context, WriteUnpluggedReferenceService.class);
-        context.startService(serviceIntent);
+		ReferenceWorker.enqueue(context, ReferenceWorker.Kind.UNPLUGGED);
 	}
 }

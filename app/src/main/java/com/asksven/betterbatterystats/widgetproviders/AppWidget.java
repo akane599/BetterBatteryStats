@@ -19,6 +19,7 @@ import com.asksven.android.common.utils.DateUtils;
 import com.asksven.betterbatterystats.LogSettings;
 import com.asksven.betterbatterystats.R;
 import com.asksven.betterbatterystats.services.UpdateWidgetService;
+import com.asksven.betterbatterystats.services.WidgetUpdateWorker;
 
 import android.annotation.SuppressLint;
 import android.annotation.TargetApi;
@@ -62,7 +63,7 @@ public class AppWidget extends AppWidgetProvider
         }
         super.onUpdate(context, appWidgetManager, appWidgetIds);
 		// Update the widgets via the service
-		UpdateWidgetService.enqueueWork(context, new Intent());
+		WidgetUpdateWorker.refreshNow(context);
 		
 		for (int appWidgetId : appWidgetIds)
 		{
@@ -216,12 +217,8 @@ public class AppWidget extends AppWidgetProvider
 		ComponentName thisWidget = new ComponentName(context, this.getClass());
 		int[] allWidgetIds = appWidgetManager.getAppWidgetIds(thisWidget);
 
-        Log.i(TAG, "trigger widget update");
-        Intent intentWidget = new Intent(AppWidget.WIDGET_UPDATE);
-        Log.i(TAG, "Widget ids: " + allWidgetIds.toString());
-        intentWidget.putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, allWidgetIds);
-
-        UpdateWidgetService.enqueueWork(context.getApplicationContext(), intentWidget);
+        Log.i(TAG, "trigger widget update for ids " + java.util.Arrays.toString(allWidgetIds));
+        WidgetUpdateWorker.refreshNow(context);
 
     }
 	

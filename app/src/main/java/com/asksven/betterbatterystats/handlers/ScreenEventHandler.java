@@ -19,15 +19,11 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.preference.PreferenceManager;
+import androidx.preference.PreferenceManager;
 import android.util.Log;
 
-import com.asksven.android.common.utils.SysUtils;
-import com.asksven.betterbatterystats.services.EventWatcherService;
-import com.asksven.betterbatterystats.services.WatchdogProcessingService;
-import com.asksven.betterbatterystats.services.WriteScreenOffReferenceService;
-import com.asksven.betterbatterystats.services.WriteScreenOnReferenceService;
-import com.asksven.betterbatterystats.widgetproviders.AppWidget;
+import com.asksven.betterbatterystats.services.ReferenceWorker;
+import com.asksven.betterbatterystats.services.WidgetUpdateWorker;
 
 /**
  * @author sven
@@ -46,10 +42,7 @@ public class ScreenEventHandler extends BroadcastReceiver
         if (intent.getAction().equals(Intent.ACTION_SCREEN_OFF))
 		{
 			Log.i(TAG, "Received Broadcast ACTION_SCREEN_OFF");
-			// start service to persist reference
-			Intent serviceIntent = new Intent(context, WriteScreenOffReferenceService.class);
-			serviceIntent.setPackage(SysUtils.getPackageName(context));
-			context.startService(serviceIntent);
+			ReferenceWorker.enqueue(context, ReferenceWorker.Kind.SCREEN_OFF);
 
 		}
 
@@ -60,18 +53,10 @@ public class ScreenEventHandler extends BroadcastReceiver
 
 			if (!bRunOnUnlock)
 			{
-				// start service to process watchdog
-//				Intent serviceIntent = new Intent(context, WatchdogProcessingService.class);
-//				context.startService(serviceIntent);
-				Intent serviceIntent2 = new Intent(context, WriteScreenOnReferenceService.class);
-				serviceIntent2.setPackage(SysUtils.getPackageName(context));
-				context.startService(serviceIntent2);
-
+				ReferenceWorker.enqueue(context, ReferenceWorker.Kind.SCREEN_ON);
 			}
 
-			// Build the intent to update widgets
-			Intent intentRefreshWidgets = new Intent(AppWidget.WIDGET_UPDATE);
-			context.sendBroadcast(intentRefreshWidgets);
+			WidgetUpdateWorker.refreshNow(context);
 			
 		}
         
@@ -82,14 +67,7 @@ public class ScreenEventHandler extends BroadcastReceiver
 
 			if (bRunOnUnlock)
 			{
-				// start service to process watchdog
-//				Intent serviceIntent = new Intent(context, WatchdogProcessingService.class);
-//				context.startService(serviceIntent);
-				Intent serviceIntent2 = new Intent(context, WriteScreenOnReferenceService.class);
-				serviceIntent2.setPackage(SysUtils.getPackageName(context));
-				context.startService(serviceIntent2);
-
-
+				ReferenceWorker.enqueue(context, ReferenceWorker.Kind.SCREEN_ON);
 			}
 			
 

@@ -52,6 +52,7 @@ import com.asksven.android.common.kernelutils.Wakelocks;
 import com.asksven.android.common.kernelutils.WakeupSources;
 import com.asksven.android.common.privateapiproxies.Alarm;
 import com.asksven.android.common.privateapiproxies.BatteryInfoUnavailableException;
+import com.asksven.android.common.privateapiproxies.BatteryStatsAvailability;
 import com.asksven.android.common.privateapiproxies.BatteryStatsProxy;
 import com.asksven.android.common.privateapiproxies.BatteryStatsTypes;
 import com.asksven.android.common.privateapiproxies.BatteryStatsTypesLolipop;
@@ -168,29 +169,75 @@ public class StatsProvider
 			return myRet;
 		}
 
+		ArrayList<StatElement> myRet;
+
 		switch (iStat)
 		{
 		case 0:
-			return getOtherUsageStatList(bFilterStats, refFrom, true, false, refTo);
+			myRet = getOtherUsageStatList(bFilterStats, refFrom, true, false, refTo);
+			break;
 		case 1:
-			return getKernelWakelockStatList(bFilterStats, refFrom,
+			myRet = getKernelWakelockStatList(bFilterStats, refFrom,
 					iPctType, iSort, refTo);
+			break;
 		case 2:
-			return getWakelockStatList(bFilterStats, refFrom, iPctType, iSort, refTo);
+			myRet = getWakelockStatList(bFilterStats, refFrom, iPctType, iSort, refTo);
+			break;
 		case 3:
-			return getAlarmsStatList(bFilterStats, refFrom, refTo);
+			myRet = getAlarmsStatList(bFilterStats, refFrom, refTo);
+			break;
 		case 4:
-			return getNetworkUsageStatList(bFilterStats, refFrom, refTo);
+			myRet = getNetworkUsageStatList(bFilterStats, refFrom, refTo);
+			break;
 		case 5:
-			return getCpuStateList(refFrom, refTo, bFilterStats);
+			myRet = getCpuStateList(refFrom, refTo, bFilterStats);
+			break;
 		case 6:
-			return getProcessStatList(bFilterStats, refFrom, iSort, refTo);
+			myRet = getProcessStatList(bFilterStats, refFrom, iSort, refTo);
+			break;
 		case 7:
-			return getSensorStatList(bFilterStats, refFrom, refTo);
-
+			myRet = getSensorStatList(bFilterStats, refFrom, refTo);
+			break;
+		default:
+			myRet = new ArrayList<StatElement>();
+			break;
 		}
 
-		return new ArrayList<StatElement>();
+		// Whatever the individual stat could or could not produce, lead with an explanation when the
+		// detailed counters are out of reach on this device. Every cause used to surface as the same
+		// empty list, which told the user nothing about whether they could do something about it.
+		return withAvailabilityNotice(ctx, myRet);
+	}
+
+	/**
+	 * Prepends a notice describing why the detailed statistics are unavailable, if they are.
+	 *
+	 * @param stats the stats collected so far; may be null or partially populated from dumpsys
+	 * @return {@code stats}, with a leading {@link Notification} when one is warranted
+	 */
+	private ArrayList<StatElement> withAvailabilityNotice(Context ctx, ArrayList<StatElement> stats)
+	{
+		BatteryStatsAvailability.Status status = BatteryStatsAvailability.getStatus(ctx);
+
+		if (status == BatteryStatsAvailability.Status.AVAILABLE)
+		{
+			return stats;
+		}
+
+		if (stats == null)
+		{
+			stats = new ArrayList<StatElement>();
+		}
+
+		// A stat that already explained itself (no reference set yet, for instance) is left alone.
+		if (!stats.isEmpty() && stats.get(0) instanceof Notification)
+		{
+			return stats;
+		}
+
+		stats.add(0, new Notification(BatteryStatsAvailability.describe(ctx, status)));
+
+		return stats;
 	}
 
 	/**
@@ -3349,18 +3396,12 @@ public class StatsProvider
 	{
 		Intent intent = new Intent(ctx, ActiveMonAlarmReceiver.class);
 		boolean alarmUp = false;
-		if (Build.VERSION.SDK_INT < 23) {
-			alarmUp = (PendingIntent.getBroadcast(ctx, ActiveMonAlarmReceiver.ACTIVE_MON_ALARM,
-					intent,
-					PendingIntent.FLAG_NO_CREATE) != null);
-		}
-		else
-		{
-			alarmUp = (PendingIntent.getBroadcast(ctx, ActiveMonAlarmReceiver.ACTIVE_MON_ALARM,
-					intent,
-					PendingIntent.FLAG_NO_CREATE | PendingIntent.FLAG_IMMUTABLE ) != null);
-
-		}
+		// A PendingIntent handed to the system must state its mutability from API 31 on, and the
+		// pre-23 branch this replaces passed no flag at all. minSdk is 23, so that branch was dead
+		// code that only served to hide the missing flag from lint.
+		alarmUp = (PendingIntent.getBroadcast(ctx, ActiveMonAlarmReceiver.ACTIVE_MON_ALARM,
+				intent,
+				PendingIntent.FLAG_NO_CREATE | PendingIntent.FLAG_IMMUTABLE) != null);
 		if (alarmUp)
 		{
 		    Log.i("myTag", "Alarm is already active");

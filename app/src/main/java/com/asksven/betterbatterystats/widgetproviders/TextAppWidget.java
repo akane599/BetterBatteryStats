@@ -19,6 +19,7 @@ import com.asksven.android.common.utils.DateUtils;
 import com.asksven.betterbatterystats.LogSettings;
 import com.asksven.betterbatterystats.R;
 import com.asksven.betterbatterystats.services.UpdateTextWidgetService;
+import com.asksven.betterbatterystats.services.WidgetUpdateWorker;
 import com.asksven.betterbatterystats.services.UpdateWidgetService;
 
 import android.annotation.SuppressLint;
@@ -61,7 +62,7 @@ public class TextAppWidget extends AppWidgetProvider
         }
         super.onUpdate(context, appWidgetManager, appWidgetIds);
 		// Update the widgets via the service
-		UpdateTextWidgetService.enqueueWork(context, new Intent());
+		WidgetUpdateWorker.refreshNow(context);
 
 		for (int appWidgetId : appWidgetIds)
 		{
@@ -203,7 +204,7 @@ public class TextAppWidget extends AppWidgetProvider
 		Log.i(TAG, "Widget ids: " + allWidgetIds.toString());
 		intentWidget.putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, allWidgetIds);
 
-		UpdateTextWidgetService.enqueueWork(context.getApplicationContext(), intentWidget);
+		WidgetUpdateWorker.refreshNow(context);
 
 	}
 

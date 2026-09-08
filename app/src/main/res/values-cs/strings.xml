@@ -261,7 +261,7 @@
     <string name="large_widget_font_size_title">Velikost písma</string>
     <string name="large_widget_font_size_summary">Nastavit velikost písma widgetu</string>
     <string name="large_widget_show_pct_title">Zobrazit %</string>
-    <string name="large_widget_show_pct_summary">Zobrazit časy v % celkového času</string>
+    <string name="large_widget_show_pct_summary">Zobrazit časy v %% celkového času</string>
     <string name="widget_opacity_title">Průhlednost</string>
     <string name="widget_opacity_summary">Nastavit průhlednost widgetu</string>
     <string name="widget_bg_opacity_title">Průhlednost pozadí</string>

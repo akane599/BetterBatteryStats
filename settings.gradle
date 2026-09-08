@@ -1,9 +1,26 @@
 pluginManagement {
     repositories {
-        google()
+        google {
+            content {
+                includeGroupByRegex("com\\.android.*")
+                includeGroupByRegex("com\\.google.*")
+                includeGroupByRegex("androidx.*")
+            }
+        }
         mavenCentral()
         gradlePluginPortal()
     }
 }
-rootProject.name = 'BetterBatteryStats'
+
+dependencyResolutionManagement {
+    // Modules may still declare `flatDir`-style local jars, so allow project repos to win
+    // for file dependencies while keeping remote resolution centralised here.
+    repositoriesMode = RepositoriesMode.PREFER_SETTINGS
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+
+rootProject.name = "BetterBatteryStats"
 include ':app'

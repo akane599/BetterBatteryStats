@@ -52,7 +52,7 @@ public class RootShell
 			catch (Exception e)
 			{
 				m_shell = null;
-                Log.w(TAG,"Error ",e);
+				Log.w(TAG, "Error ", e);
 			}
 		}
 

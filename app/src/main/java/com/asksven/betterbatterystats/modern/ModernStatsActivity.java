@@ -60,7 +60,7 @@ public final class ModernStatsActivity extends AppCompatActivity {
         else showMessage("Shizuku access was denied. Allow BBS in Shizuku, or choose ADB / root access from the menu.");
     };
     private final Shizuku.OnBinderDeadListener deadListener = () -> runOnUiThread(() -> {
-        if (!isFinishing()) showMessage("Shizuku stopped. Saved data is still available; restart Shizuku before refreshing.");
+        if (!isFinishing() && !isDestroyed()) showMessage("Shizuku stopped. Saved data is still available; restart Shizuku before refreshing.");
     });
 
     private final ActivityResultLauncher<String[]> importLauncher = registerForActivityResult(
@@ -137,6 +137,7 @@ public final class ModernStatsActivity extends AppCompatActivity {
     }
 
     private void showMessage(String message) {
+        if (isFinishing() || isDestroyed()) return;
         new MaterialAlertDialogBuilder(this).setMessage(message).setPositiveButton(android.R.string.ok, null).show();
     }
 

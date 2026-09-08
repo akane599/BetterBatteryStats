@@ -1,12 +1,12 @@
 # Android 16 implementation review
 
-Base: `ccb0904791ab20e35a187dbd2a4cf53643dcba19`.
+Original base: `ccb0904791ab20e35a187dbd2a4cf53643dcba19`. Integrated master: `83fdc6a142e0da1dcf131dcaa7d27969831b46b6`, merged concurrently through PR #1. Its WorkManager migration, resource/lint fixes, version catalog, signing setup and serialization protections are preserved.
 
 ## Findings addressed
 
 | Finding in the base | Change and resulting behavior |
 | --- | --- |
-| SDK 33, AGP 7.2.2, Gradle 7.4.2; latest commit already documents a broken Android 14 update. | Compile/target SDK 36, AGP 8.11.1, Gradle 8.13, Java 17; explicit namespace, BuildConfig and AIDL generation. |
+| SDK 33, AGP 7.2.2, Gradle 7.4.2; latest commit already documents a broken Android 14 update. | Compile/target SDK 36, AGP 8.13.2, Gradle 8.14.3, Java 17; explicit namespace, BuildConfig and AIDL generation. |
 | `BatteryStatsProxy` depends on private parcel formats, reflective constructors and `getStatisticsStream`; the launcher attempts global hidden-API policy changes. | API 34+ redirects before any legacy setup/collection to a separate text-dump backend. No private parcel unmarshalling or global policy changes in that path. |
 | Legacy collector starts background event services and jobs on boot. | API 34+ uses explicit, bounded collection; retires old jobs, skips legacy boot services, and makes existing widget providers render saved snapshots. |
 | Targeting Android 16 enforces edge-to-edge and changes back dispatch. | Modern activity applies system bar, cutout and IME insets; standard AndroidX back handling has no legacy interception. Header content scrolls with the recycling list. |
@@ -14,7 +14,7 @@ Base: `ccb0904791ab20e35a187dbd2a4cf53643dcba19`.
 | Large reports are unsafe as Binder strings. | Shizuku UserService returns a reliable pipe. Fixed commands have deadlines; output/import size is capped at 16 MiB. The service is unbound after each collection. |
 | Reference subtraction can make resets look like negative durations. | New comparisons validate epoch, boot count, source, monotonic counters and disappeared entries. Incomplete reports cannot become baselines. |
 | Broad media permissions and exported setup screens are unnecessary for the new flow. | Removes media-read permissions; setup/diagnostic activities become internal. New exports use the document picker; new records use atomic app-private storage. |
-| Build instructions require unrelated publishing credentials and offer no GitHub APK pipeline. | Removes the Play publishing build plugin and obsolete Kotlin buildscript entries; adds build/test/lint/APK and API 36 smoke-test jobs. Debug package is isolated from the installed original app. |
+| Build instructions require unrelated publishing credentials and offer no GitHub APK pipeline. | Preserves master's conditional publishing plugin and version catalog; adds build/test/lint/APK and API 36 smoke-test jobs. Debug package is isolated from the installed original app. |
 
 ## Data contract
 
@@ -49,11 +49,11 @@ Before treating this as a stable release, validate on the intended physical phon
 5. Check gestures and three-button navigation, light/dark mode, landscape, split-screen and large fonts. Inspect widgets for a clear last-snapshot timestamp.
 6. Verify foreground/background behavior and absence of unexpected BBS wakeups. This backend deliberately has no automatic screen-off/unplug capture.
 
-The original private-API implementation is retained for API 24–33, including its existing limitations. This branch is not a complete audit or rewrite of those historical paths.
+The existing dashboard, master's WorkManager migration and private-API implementation are retained for API 24–33, including their remaining limitations. This branch is not a complete audit or rewrite of those historical paths.
 
 ## Platform references
 
 - [Android 16 setup](https://developer.android.com/about/versions/16/setup-sdk)
 - [Android 16 behavior changes for targeting apps](https://developer.android.com/about/versions/16/behavior-changes-16)
 - [Android 16 behavior changes for all apps](https://developer.android.com/about/versions/16/behavior-changes-all)
-- [AGP 8.11 compatibility](https://developer.android.com/build/releases/agp-8-11-0-release-notes)
+- [AGP 8.13 compatibility](https://developer.android.com/build/releases/agp-8-13-0-release-notes)

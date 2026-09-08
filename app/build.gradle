@@ -1,176 +1,268 @@
-apply plugin: 'com.android.application'
+plugins {
+    alias(libs.plugins.android.application)
+}
 
-
-//apply plugin: 'kotlin-android-extensions'
-//apply plugin: 'com.google.gms.google-services'
+// The Play Publisher plugin needs a service-account credentials file that only CI has, and its
+// tasks fail at configuration time without one. It is declared in the root build and applied here
+// only when the credentials are actually present, so local and offline builds are unaffected.
+def playCredentials = file('sa-google-play.json')
+if (playCredentials.exists()) {
+    apply plugin: libs.plugins.play.publisher.get().pluginId
+    play {
+        track = 'beta'
+        serviceAccountCredentials = playCredentials
+    }
+}
 
 android {
     namespace 'com.asksven.betterbatterystats'
-    compileSdk 36
-
-    buildFeatures {
-        buildConfig true
-        aidl true
-    }
-    compileOptions {
-        sourceCompatibility JavaVersion.VERSION_17
-        targetCompatibility JavaVersion.VERSION_17
-        coreLibraryDesugaringEnabled true
-    }
+    compileSdk libs.versions.compileSdk.get() as int
+    buildToolsVersion = '36.0.0'
 
     defaultConfig {
         applicationId "com.asksven.betterbatterystats"
         resValue "string", "app_display_name", "BBS"
-        minSdkVersion 24
-        //noinspection ExpiredTargetSdkVersion
-        targetSdk 36
-        versionCode 109
+        minSdk libs.versions.minSdk.get() as int
+        targetSdk libs.versions.targetSdk.get() as int
+        versionCode 110
         versionName "4.0.0-alpha01"
         versionNameSuffix = getBuildSuffix()
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
-        signingConfig signingConfigs.debug
         testBuildType "debug"
         vectorDrawables.useSupportLibrary = true
         multiDexEnabled true
     }
 
+    // The keystores are decrypted by CI and are not in the repository. Pointing a signing config at
+    // a file that is not there makes the task fail at packaging time, so `assembleRelease` could
+    // not be run at all — not even to check that the build and R8 configuration are sound. Each
+    // config is only wired up when its keystore is actually present; the variant is otherwise built
+    // unsigned.
     signingConfigs {
         release {
-            storeFile file(System.getenv("KEYSTORE_RELEASE") ?: "app.keystore")
-            storePassword System.getenv("KEYSTORE_PASSWORD")
-            keyAlias System.getenv("KEY_ALIAS")
-            keyPassword System.getenv("KEY_PASSWORD")
+            def releaseKeystore = file(System.getenv("KEYSTORE_RELEASE") ?: "app.keystore")
+            if (releaseKeystore.exists()) {
+                storeFile = releaseKeystore
+                storePassword = System.getenv("KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("KEY_ALIAS")
+                keyPassword = System.getenv("KEY_PASSWORD")
+            }
         }
         debug {
-            if(file(System.getenv("KEYSTORE_DEBUG") ?: "app.keystore").exists()) {
-                storeFile = file(System.getenv("KEYSTORE_DEBUG") ?: "app.keystore")
+            def debugKeystore = file(System.getenv("KEYSTORE_DEBUG") ?: "app.keystore")
+            if (debugKeystore.exists()) {
+                storeFile = debugKeystore
             }
         }
     }
 
     // we have different package name for the variants
-    flavorDimensions "edition"
+    flavorDimensions += "edition"
     productFlavors {
         gplay {
             dimension "edition"
             applicationId "com.asksven.betterbatterystats"
-            signingConfig signingConfigs.release
-//            playAccountConfig = playAccountConfigs.defaultAccountConfig
-
-
+            if (signingConfigs.release.storeFile != null) {
+                signingConfig signingConfigs.release
+            }
         }
         xdaedition {
             dimension "edition"
             applicationId "com.asksven.betterbatterystats_xdaedition"
-            signingConfig signingConfigs.debug
+            if (signingConfigs.debug.storeFile != null) {
+                signingConfig signingConfigs.debug
+            }
         }
     }
 
-    variantFilter { variant ->
-        def names = variant.flavors*.name
-        // To check for a certain build type, use variant.buildType.name == "<buildType>"
-        if (names.contains("gplay") && variant.buildType.name == "debug") {
-            // Gradle ignores any variants that satisfy the conditions above.
-            setIgnore(true)
+    androidComponents {
+        beforeVariants(selector().withFlavor("edition", "gplay").withBuildType("debug")) { variantBuilder ->
+            // The Play flavour is only ever shipped as a signed release build.
+            variantBuilder.enable = false
         }
-
-        // for xda edition we want to be able to build both debug and release version
-
     }
-    // and a naming policy for the apks
-    applicationVariants.all { variant ->
-        variant.outputs.all {
-            def project = "betterbatterystats"
-            def SEP = "_"
-            def flavor = variant.productFlavors[0].name
-            def buildType = variant.buildType.name
-            // update gradle // def buildType = variant.variantData.variantConfiguration.buildType.name
-            def version = variant.versionName
-
-            //def newApkName = project + SEP + flavor + SEP + buildType + SEP + version + ".apk"
-            def newApkName = project + SEP + flavor + SEP + buildType + SEP + version + ".apk"
-            outputFileName = newApkName
-        }
-
-    }
-
-
 
     buildTypes {
         release {
-            minifyEnabled false
-            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
             debuggable false
-            signingConfig signingConfigs.release
+            if (signingConfigs.release.storeFile != null) {
+                signingConfig signingConfigs.release
+            }
         }
         debug {
             applicationIdSuffix ".modern"
             resValue "string", "app_display_name", "BBS Modern"
             minifyEnabled false
             debuggable true
-            signingConfig signingConfigs.debug
+            if (signingConfigs.debug.storeFile != null) {
+                signingConfig signingConfigs.debug
+            }
         }
     }
-    packagingOptions {
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+        // Backport of java.time / streams APIs to the API 21 baseline.
+        coreLibraryDesugaringEnabled true
+    }
+
+    buildFeatures {
+        buildConfig true
+        aidl true
+    }
+
+    packaging {
         resources {
-            excludes += ['META-INF/LICENSE', 'META-INF/ASL2.0']
+            excludes += ['META-INF/LICENSE', 'META-INF/ASL2.0', 'META-INF/DEPENDENCIES']
+        }
+        jniLibs {
+            // Android 15+ devices may use 16 KB memory pages; uncompressed libs page-align correctly.
+            useLegacyPackaging = false
         }
     }
+
     lint {
         abortOnError false
         disable 'MissingTranslation'
+        checkReleaseBuilds false
     }
+
+    testOptions {
+        unitTests.returnDefaultValues = true
+    }
+}
+
+// and a naming policy for the apks
+androidComponents {
+    onVariants(selector().all()) { variant ->
+        variant.outputs.each { output ->
+            def flavor = variant.flavorName
+            def buildType = variant.buildType
+            output.outputFileName.set(
+                    output.versionName.map { v -> "betterbatterystats_${flavor}_${buildType}_${v}.apk" as String })
+        }
+    }
+}
+
+/*
+ * References are persisted as Java-serialized blobs in SQLite. Java serialization resolves classes
+ * and fields by name, so if R8 ever renames one of them, every reference already on a user's device
+ * becomes unreadable on update — silently, with no error to trace back to the rename.
+ *
+ * `proguard-rules.pro` keeps that object graph, but a keep rule is easy to weaken by accident. This
+ * task reads what R8 actually did and fails the build if any persisted type or field was renamed.
+ */
+def verifyPersistedModelNotObfuscated = tasks.register('verifyPersistedModelNotObfuscated') {
+    description = 'Fails if R8 renamed a class or field that is persisted by Java serialization.'
+    group = 'verification'
+
+    def mappingFiles = fileTree(layout.buildDirectory.dir('outputs/mapping')) { include '**/mapping.txt' }
+    inputs.files(mappingFiles).withPropertyName('mappingFiles').skipWhenEmpty()
+
+    doLast {
+        // The classes reachable from ReferenceDto, which is what actually goes into the blob.
+        def persistedPrefixes = [
+                'com.asksven.android.common.dto.',
+                'com.asksven.android.common.nameutils.UidInfo',
+                'com.asksven.android.common.privateapiproxies.StatElement',
+                'com.asksven.betterbatterystats.data.Reference',
+                'com.asksven.betterbatterystats.data.ReferenceDto',
+                'com.asksven.betterbatterystats.modern.SnapshotStore$Record',
+        ]
+        // Same package or prefix, but runtime-only: never written to disk, safe to rename.
+        def runtimeOnly = [
+                'com.asksven.betterbatterystats.data.ReferenceDBHelper',
+                'com.asksven.betterbatterystats.data.ReferenceStore',
+        ]
+
+        def problems = []
+
+        mappingFiles.each { mappingFile ->
+            def currentClass = null
+            def currentIsPersisted = false
+
+            mappingFile.eachLine { line ->
+                if (!line.startsWith(' ') && line.contains(' -> ')) {
+                    def (original, obfuscated) = line.trim().replaceAll(':$', '').split(' -> ')
+                    currentClass = original
+                    currentIsPersisted = persistedPrefixes.any { original.startsWith(it) } &&
+                            !runtimeOnly.any { original == it || original.startsWith(it + '$') }
+
+                    if (currentIsPersisted && original != obfuscated) {
+                        problems << "class ${original} was renamed to ${obfuscated}"
+                    }
+                } else if (currentIsPersisted && line.startsWith(' ') && line.contains(' -> ')) {
+                    def parts = line.trim().split(' -> ')
+                    // methods carry an argument list; only fields matter for serialization
+                    if (!parts[0].contains('(')) {
+                        def fieldName = parts[0].tokenize(' ').last()
+                        if (fieldName != parts[1]) {
+                            problems << "field ${currentClass}.${fieldName} was renamed to ${parts[1]}"
+                        }
+                    }
+                }
+            }
+        }
+
+        if (!problems.isEmpty()) {
+            throw new GradleException(
+                    "R8 renamed persisted model members; saved references would become unreadable " +
+                            "on update. Fix the keep rules in proguard-rules.pro:\n  " +
+                            problems.join('\n  '))
+        }
+
+        logger.lifecycle('Persisted model is intact: no serialized class or field was renamed.')
+    }
+}
+
+tasks.matching { it.name ==~ /assemble\w*Release/ }.configureEach {
+    finalizedBy verifyPersistedModelNotObfuscated
 }
 
 dependencies {
     coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.5'
-    implementation 'dev.rikka.shizuku:api:13.1.5'
-    implementation 'dev.rikka.shizuku:provider:13.1.5'
-    implementation 'androidx.activity:activity:1.10.1'
-    implementation 'androidx.lifecycle:lifecycle-viewmodel:2.9.2'
-    implementation 'androidx.lifecycle:lifecycle-livedata:2.9.2'
-    implementation 'androidx.recyclerview:recyclerview:1.4.0'
-
-    implementation fileTree(include: ['*.jar'], dir: 'libs')
-    // for local tests (app/src/test)
-    // Required for instrumented tests (app/src/androidTest)
-    androidTestImplementation('androidx.test.espresso:espresso-core:3.6.1', {
-        exclude group: 'com.android.support', module: 'support-annotations'
-    })
 
     implementation files('libs/RootTools-5.0.aar')
     implementation files('libs/RootShell-1.6.aar')
-    implementation 'androidx.appcompat:appcompat:1.7.1'
-    implementation 'de.cketti.library.changelog:ckchangelog:1.2.2'
-    implementation 'com.google.android.apps.dashclock:dashclock-api:2.0.0'
-    implementation 'com.google.code.gson:gson:2.13.1'
-    implementation 'org.codehaus.jackson:jackson-core-asl:1.9.13'
-    implementation 'org.codehaus.jackson:jackson-mapper-asl:1.9.13'
-    implementation 'com.google.android.material:material:1.12.0'
-    implementation 'androidx.vectordrawable:vectordrawable:1.1.0'
-    testImplementation 'junit:junit:4.13.2'
-    androidTestImplementation 'androidx.test.ext:junit:1.2.1'
-    androidTestImplementation 'androidx.test:rules:1.6.1'
-    androidTestImplementation 'androidx.test:runner:1.6.2'
-    androidTestImplementation 'androidx.test:core:1.6.1'
-    //implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.6.21"
-    implementation "androidx.swiperefreshlayout:swiperefreshlayout:1.1.0"
-    implementation "androidx.multidex:multidex:2.0.1"
 
-}
-repositories {
-    mavenCentral()
-    google()
-}
+    implementation libs.androidx.activity
+    implementation libs.androidx.appcompat
+    implementation libs.androidx.core
+    implementation libs.androidx.fragment
+    implementation libs.androidx.lifecycle.runtime
+    implementation libs.androidx.lifecycle.viewmodel
+    implementation libs.androidx.lifecycle.livedata
+    implementation libs.shizuku.api
+    implementation libs.shizuku.provider
+    implementation libs.androidx.multidex
+    implementation libs.androidx.preference
+    implementation libs.androidx.recyclerview
+    implementation libs.androidx.swiperefreshlayout
+    implementation libs.androidx.vectordrawable
+    implementation libs.androidx.work.runtime
 
+    implementation libs.material
+    implementation libs.gson
+    implementation libs.jackson.core
+    implementation libs.jackson.mapper
+    implementation libs.ckchangelog
+    implementation libs.dashclock.api
+
+    testImplementation libs.junit
+    testImplementation libs.mockito.core
+
+    androidTestImplementation libs.androidx.test.junit
+    androidTestImplementation libs.androidx.test.rules
+    androidTestImplementation libs.espresso.core
+    androidTestImplementation libs.androidx.test.core
+    androidTestImplementation libs.androidx.test.runner
+}
 
 def getBuildSuffix() {
-    def ret = ""
     def buildNumber = System.getenv("CIRCLE_BUILD_NUM")
-    if (buildNumber != null) {
-        ret = "-" + buildNumber
-    }
-
-    println ">>>>> Build number: \"" + ret + "\""
-    return ret
+    return buildNumber != null ? "-" + buildNumber : ""
 }

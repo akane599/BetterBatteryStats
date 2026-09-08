@@ -37,7 +37,7 @@ public final class DumpCommand {
             int exit = process.waitFor();
             if (timedOut.get()) throw new IOException("Battery collection timed out. Check access and try again.");
             if (exit != 0) throw new IOException("Battery command failed (exit " + exit + "). Check Shizuku or ADB access.");
-            if (text.contains("DUMP TIMEOUT") || text.contains("was the duration of dumpsys")) {
+            if (text.contains("*** SERVICE DUMP TIMEOUT")) {
                 throw new IOException("Android returned an incomplete battery dump. Try again.");
             }
             return text;

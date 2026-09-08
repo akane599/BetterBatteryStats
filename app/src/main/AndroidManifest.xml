@@ -41,12 +41,23 @@
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <!-- needed starting with SDK 28 -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <!--
+        Android 14 (SDK 34) requires a per-type foreground service permission on top of
+        FOREGROUND_SERVICE. The event watcher exists solely to keep the SCREEN_ON/SCREEN_OFF/
+        USER_PRESENT/POWER_DISCONNECTED receivers registered — those broadcasts are never delivered
+        to manifest-declared receivers — which matches no other type.
+    -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <!-- Attempt to narrow down the A13 Samsung issue -->
     <uses-permission android:name="android.permission.READ_PRECISE_PHONE_STATE"
         tools:ignore="ProtectedPermissions" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    <uses-permission android:name="android.permission.INTERACT_ACROSS_USERS" />
-    <uses-permission android:name="android.permission.QUERY_USERS" />
+    <!-- Like DUMP and BATTERY_STATS above: only granted with root or via adb, and the app degrades
+         gracefully without them. -->
+    <uses-permission android:name="android.permission.INTERACT_ACROSS_USERS"
+        tools:ignore="ProtectedPermissions" />
+    <uses-permission android:name="android.permission.QUERY_USERS"
+        tools:ignore="ProtectedPermissions" />
 
     <queries>
         <intent>
@@ -69,11 +80,13 @@
 
     <application
         android:name=".BbsApplication"
-        android:allowBackup="false"
+        android:allowBackup="true"
         android:fullBackupContent="@xml/backup_rules"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_display_name"
         android:supportsRtl="true"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:enableOnBackInvokedCallback="true"
         android:theme="@style/Theme.Bbs.Auto">
 
         <provider
@@ -265,25 +278,22 @@
         </receiver>
 
         <!--
-        <service android:name=".services.UpdateLargeWidgetService" android:permission="android.permission.BIND_JOB_SERVICE"/>
-        <service android:name=".services.UpdateMediumWidgetService" android:permission="android.permission.BIND_JOB_SERVICE"/>
-        <service android:name=".services.UpdateSmallWidgetService" android:permission="android.permission.BIND_JOB_SERVICE"/>
+            The reference writers and the widget refresh run as WorkManager workers; WorkManager
+            declares its own components, so they need no entry here. What is left is the one
+            long-lived service and the JobService the time-series collection is scheduled on.
         -->
-        <service android:name=".services.UpdateWidgetService" android:permission="android.permission.BIND_JOB_SERVICE"/>
-        <service android:name=".services.UpdateTextWidgetService" android:permission="android.permission.BIND_JOB_SERVICE"/>
-
-        <service android:name=".services.AppWidgetJobService" android:permission="android.permission.BIND_JOB_SERVICE"/>
-        <service android:name=".services.EventWatcherService" />
-        <service android:name=".services.WriteUnpluggedReferenceService" />
-        <service android:name=".services.WriteCustomReferenceService" />
-        <service android:name=".services.WriteCurrentReferenceService" />
-        <service android:name=".services.WriteDumpfileService" />
-        <service android:name=".services.WriteScreenOffReferenceService" />
-        <service android:name=".services.WriteTimerReferenceService" />
-        <service android:name=".services.WriteScreenOnReferenceService" />
-        <service android:name=".services.WriteBootReferenceService" android:permission="android.permission.BIND_JOB_SERVICE" />
-        <service android:name=".services.WriteTimeSeriesService" android:permission="android.permission.BIND_JOB_SERVICE" />
-        <service android:name=".services.WatchdogProcessingService" />
+        <service
+            android:name=".services.EventWatcherService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Keeps the screen on/off and unplug receivers registered so that battery-stats references can be captured at the moment those events happen. These broadcasts are not delivered to manifest-declared receivers." />
+        </service>
+        <service
+            android:name=".services.WriteTimeSeriesService"
+            android:exported="false"
+            android:permission="android.permission.BIND_JOB_SERVICE" />
         <service
             android:name=".services.BbsDashClockExtension"
             android:icon="@drawable/ic_stat_notification"

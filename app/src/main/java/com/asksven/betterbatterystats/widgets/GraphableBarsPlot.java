@@ -24,12 +24,12 @@ import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.util.AttributeSet;
-import android.widget.ImageView;
+import androidx.appcompat.widget.AppCompatImageView;
 
 /**
  * @author sven
  */
-public class GraphableBarsPlot extends ImageView
+public class GraphableBarsPlot extends AppCompatImageView
 {
 	private static final String TAG = "GraphableBarsPlot";
 	private Context m_context;

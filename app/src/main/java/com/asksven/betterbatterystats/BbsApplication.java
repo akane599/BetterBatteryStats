@@ -71,6 +71,7 @@ public class BbsApplication extends MultiDexApplication
             // Retire jobs left by an upgrade from the private-API backend.
             android.app.job.JobScheduler jobs = (android.app.job.JobScheduler) getSystemService(JOB_SCHEDULER_SERVICE);
             if (jobs != null) jobs.cancelAll();
+            androidx.work.WorkManager.getInstance(this).cancelAllWork();
             stopService(new android.content.Intent(this, com.asksven.betterbatterystats.services.EventWatcherService.class));
         }
 

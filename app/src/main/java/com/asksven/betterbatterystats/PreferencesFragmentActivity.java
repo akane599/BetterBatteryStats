@@ -30,7 +30,7 @@ import androidx.appcompat.widget.Toolbar;
 
 import com.asksven.android.common.CommonLogSettings;
 import com.asksven.betterbatterystats.data.StatsProvider;
-import com.asksven.betterbatterystats.handlers.OnBootHandler;
+import com.asksven.betterbatterystats.services.WidgetUpdateWorker;
 
 import java.util.UUID;
 
@@ -93,7 +93,7 @@ public class PreferencesFragmentActivity extends BaseActivity
 					SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(getActivity());
 					SharedPreferences.Editor editor = preferences.edit();
 					editor.putString("storage_path", destinationUri.getPath());
-					editor.commit();
+					editor.apply();
 				}
 			}
 		}
@@ -153,7 +153,7 @@ public class PreferencesFragmentActivity extends BaseActivity
 													.getDefaultSharedPreferences(getActivity());
 											SharedPreferences.Editor editor = sharedPrefs.edit();
 											editor.putBoolean("active_mon_enabled", false);
-											editor.commit();
+											editor.apply();
 											dialog.cancel();
 										}
 									});
@@ -190,7 +190,7 @@ public class PreferencesFragmentActivity extends BaseActivity
                 {
                     SharedPreferences.Editor editor = preferences.edit();
                     editor.putString("uuid", UUID.randomUUID().toString());
-                    editor.commit();
+                    editor.apply();
                 }
 
             }
@@ -198,7 +198,7 @@ public class PreferencesFragmentActivity extends BaseActivity
 			// if widget settings changed force them to update
 			if (key.equals("text_widget_color") || key.equals("widget_show_pct"))
 			{
-                OnBootHandler.scheduleAppWidgetsJobImmediate(BbsApplication.getAppContext());
+                WidgetUpdateWorker.refreshNow(BbsApplication.getAppContext());
 
 
 			}

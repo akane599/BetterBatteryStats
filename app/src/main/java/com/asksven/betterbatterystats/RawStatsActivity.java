@@ -23,7 +23,6 @@ package com.asksven.betterbatterystats;
 import java.util.ArrayList;
 
 import android.content.SharedPreferences;
-import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.SystemClock;
 import android.preference.PreferenceManager;
@@ -44,6 +43,7 @@ import com.asksven.android.common.privateapiproxies.StatElement;
 import com.asksven.android.common.utils.DateUtils;
 import com.asksven.betterbatterystats.adapters.StatsAdapter;
 import com.asksven.betterbatterystats.data.StatsProvider;
+import com.asksven.betterbatterystats.util.BackgroundTask;
 
 public class RawStatsActivity extends ActionBarListActivity implements AdapterView.OnItemSelectedListener
 {
@@ -126,13 +126,13 @@ public class RawStatsActivity extends ActionBarListActivity implements AdapterVi
 	protected void onResume()
 	{
 		super.onResume();
-		new LoadStatData().execute(this);
+		loadStats();
 	}
 
 	private void doRefresh()
 	{
 		BatteryStatsProxy.getInstance(this).invalidate();
-		new LoadStatData().execute(this);
+		loadStats();
 		if (m_listViewAdapter != null)
 		{
 			m_listViewAdapter.notifyDataSetChanged();
@@ -183,113 +183,64 @@ public class RawStatsActivity extends ActionBarListActivity implements AdapterVi
 	}
 
 
-	// @see http://code.google.com/p/makemachine/source/browse/trunk/android/examples/async_task/src/makemachine/android/examples/async/AsyncTaskExample.java
-	// for more details
-	private class LoadStatData extends AsyncTask<Object, Integer, StatsAdapter>
+	/**
+	 * Reads the selected raw stat off the main thread and binds it to the list.
+	 *
+	 * <p>Only the read happens in the background: the adapter is constructed on the main thread,
+	 * where the Activity it holds is safe to touch and cannot already have been destroyed.</p>
+	 */
+	private void loadStats()
 	{
-		private Exception m_exception = null;
-		@Override
-	    protected StatsAdapter doInBackground(Object... refresh)
-	    {
-			m_listViewAdapter = null;
-			try
-			{
-				Log.i(TAG, "LoadStatData: refreshing display for raw stats");
-				
-				ArrayList<StatElement> stats = null;
-				StatsProvider provider = StatsProvider.getInstance();
-				// constants are related to arrays.xml string-array name="stats"
-				switch (m_iStat)
+		swipeLayout.setRefreshing(true);
+
+		final int statType = m_iStat;
+
+		BackgroundTask.run(this,
+				() ->
 				{
-					case 0:
-						stats = provider.getCurrentOtherUsageStatList(true, false, false);
-						break;
-					case 1:
-						stats = provider.getCurrentKernelWakelockStatList(false, 0, 0);
-						break;
-					case 2:
-						stats = provider.getCurrentWakelockStatList(false, 0, 0);
-						break;
-					case 3:
-						stats = provider.getCurrentAlarmsStatList(false);
-						break;
-					case 4:
-						stats = provider.getCurrentNetworkUsageStatList(false);
-						break;
-					case 5:
-						stats = provider.getCurrentCpuStateList(false);
-						break;
-					case 6:
-						stats = provider.getCurrentProcessStatList(false, 0);
-						break;
-					case 7:
-						stats = provider.getCurrentSensorStatList(false);
-						break;
-	
-				}
-				m_listViewAdapter = new StatsAdapter(RawStatsActivity.this, stats, RawStatsActivity.this);
-			}
-			catch (BatteryInfoUnavailableException e)
-			{
-				//Log.e(TAG, e.getMessage(), e.fillInStackTrace());
-				Log.e(TAG, "Exception: "+Log.getStackTraceString(e));
-				m_exception = e;
+					Log.i(TAG, "loadStats: refreshing display for raw stats");
+					StatsProvider provider = StatsProvider.getInstance();
 
-			}
-			catch (Exception e)
-			{
-				//Log.e(TAG, e.getMessage(), e.fillInStackTrace());
-				Log.e(TAG, "Exception: "+Log.getStackTraceString(e));
-				m_exception = e;
+					// constants are related to arrays.xml string-array name="stats"
+					switch (statType)
+					{
+						case 0:
+							return provider.getCurrentOtherUsageStatList(true, false, false);
+						case 1:
+							return provider.getCurrentKernelWakelockStatList(false, 0, 0);
+						case 2:
+							return provider.getCurrentWakelockStatList(false, 0, 0);
+						case 3:
+							return provider.getCurrentAlarmsStatList(false);
+						case 4:
+							return provider.getCurrentNetworkUsageStatList(false);
+						case 5:
+							return provider.getCurrentCpuStateList(false);
+						case 6:
+							return provider.getCurrentProcessStatList(false, 0);
+						case 7:
+							return provider.getCurrentSensorStatList(false);
+						default:
+							return new ArrayList<StatElement>();
+					}
+				},
+				(stats, error) ->
+				{
+					swipeLayout.setRefreshing(false);
 
-			}
+					if (error != null)
+					{
+						int message = (error instanceof BatteryInfoUnavailableException)
+								? R.string.info_service_connection_error
+								: R.string.info_unknown_stat_error;
 
-	    	//StatsActivity.this.setListAdapter(m_listViewAdapter);
-	        // getStatList();
-	        return m_listViewAdapter;
-	    }
-		
-//		@Override
-		protected void onPostExecute(StatsAdapter o)
-	    {
-            swipeLayout.setRefreshing(false);
+						Snackbar.make(findViewById(android.R.id.content), message, Snackbar.LENGTH_LONG).show();
+						return;
+					}
 
-	    	if (m_exception != null)
-	    	{
-	    		if (m_exception instanceof BatteryInfoUnavailableException)
-	    		{
-	    			Snackbar
-					  .make(findViewById(android.R.id.content), R.string.info_service_connection_error, Snackbar.LENGTH_LONG)
-					  .show();
-//	    			Toast.makeText(RawStatsActivity.this,
-//	    					getString(R.string.info_service_connection_error),
-//	    					Toast.LENGTH_LONG).show();
-
-	    		}
-	    		else
-	    		{
-	    			Snackbar
-					  .make(findViewById(android.R.id.content), R.string.info_unknown_stat_error, Snackbar.LENGTH_LONG)
-					  .show();
-//
-//	    			Toast.makeText(RawStatsActivity.this,
-//	    					getString(R.string.info_unknown_stat_error),
-//	    					Toast.LENGTH_LONG).show();
-	    			
-	    		}
-	    	}
-        	if (o != null)
-        	{
-        		o.setTotalTime(SystemClock.elapsedRealtime());
-        		
-        	}
-	    	RawStatsActivity.this.setListAdapter(o);
-	    }
-//	    @Override
-	    protected void onPreExecute()
-	    {
-            swipeLayout.setRefreshing(true);
-	    }
+					m_listViewAdapter = new StatsAdapter(RawStatsActivity.this, stats, RawStatsActivity.this);
+					m_listViewAdapter.setTotalTime(SystemClock.elapsedRealtime());
+					setListAdapter(m_listViewAdapter);
+				});
 	}
-	
 }

@@ -75,6 +75,13 @@
 	<color name="color_clickable_compat">#50CCCCCC</color>
 	
 	<!-- widget colors -->
+	<!--
+	    Widget labels when colour coding is switched off. This used to borrow appcompat's
+	    primary_text_default_material_dark through the transitive R class; it is declared here now
+	    that resource references are non-transitive, and because depending on another library's
+	    internal colour was never safe.
+	-->
+	<color name="widget_label_default">#ffffffff</color>
 	<color name="deep_sleep">#2ecc71</color>
 	<color name="awake">#e74c3c</color>
 	<color name="screen_on">#f1c40f</color>
