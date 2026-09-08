@@ -51,6 +51,7 @@ public class WriteBootReferenceService extends JobService
     @Override
     public boolean onStartJob(JobParameters params)
     {
+        if (android.os.Build.VERSION.SDK_INT >= 34) return false;
 		SharedPreferences sharedPrefs = PreferenceManager.getDefaultSharedPreferences(this);
 
 		Log.i(TAG, "Called at " + DateUtils.now());

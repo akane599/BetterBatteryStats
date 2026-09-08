@@ -41,6 +41,7 @@ public class    AppWidgetJobService extends JobService
     @Override
     public boolean onStartJob(JobParameters params)
     {
+        if (android.os.Build.VERSION.SDK_INT >= 34) return false;
         Context appContext = this.getApplicationContext();
 
         // Build the intent to call the services

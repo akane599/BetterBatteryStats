@@ -72,7 +72,7 @@
         android:allowBackup="false"
         android:fullBackupContent="@xml/backup_rules"
         android:icon="@mipmap/ic_launcher"
-        android:label="BBS"
+        android:label="@string/app_display_name"
         android:supportsRtl="true"
         android:theme="@style/Theme.Bbs.Auto">
 
@@ -99,7 +99,7 @@
         <activity
             android:name=".StatsActivity"
             android:configChanges="orientation|screenSize"
-            android:label="BetterBatteryStats"
+            android:label="@string/app_display_name"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -287,7 +287,7 @@
         <service
             android:name=".services.BbsDashClockExtension"
             android:icon="@drawable/ic_stat_notification"
-            android:label="BetterBatteryStats"
+            android:label="@string/app_display_name"
             android:permission="com.google.android.apps.dashclock.permission.READ_EXTENSION_DATA"
             android:exported="true">
             <intent-filter>
